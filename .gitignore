@@ -1,0 +1,11 @@
+.DS_Store
+.test-build/
+
+# Local credentials and Chrome extension signing keys
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx

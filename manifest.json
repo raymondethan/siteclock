@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "SiteClock",
+  "version": "0.1.0",
+  "description": "A small timer showing your cumulative active time on each website. Everything stays on this computer.",
+  "minimum_chrome_version": "120",
+  "permissions": ["storage", "tabs", "idle", "alarms"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+    "matches": ["http://*/*", "https://*/*"],
+    "js": ["content.js"],
+    "run_at": "document_idle"
+  }],
+  "action": { "default_title": "SiteClock", "default_popup": "popup.html" },
+  "incognito": "not_allowed"
+}
