@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SiteClock · Store submission review</title><style>
+:root{color-scheme:light;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#19232b;background:#f4f8f6}
+*{box-sizing:border-box}body{margin:0}main{max-width:1080px;margin:0 auto;padding:64px 32px 96px}
+h1,h2,h3{line-height:1.2;letter-spacing:-.025em}h1{font-size:42px;margin:0 0 18px}h2{margin:40px 0 16px;font-size:26px}
+h3{margin-top:28px;font-size:19px}p,li{max-width:78ch}a{color:#176244;text-underline-offset:3px}code{font-size:.88em;overflow-wrap:anywhere}
+.intro{font-size:19px;color:#50645e}.status{display:inline-block;padding:5px 12px;border:1px solid #b8cfc2;border-radius:99px;font-size:12px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.card{background:white;border:1px solid #dbe5df;border-radius:16px;padding:24px;overflow:hidden}
+figure{margin:0}figcaption{font-size:13px;color:#50645e;margin-top:12px}img{max-width:100%;height:auto;display:block;border-radius:8px}
+.wide{grid-column:1/-1}.files{display:flex;gap:14px;flex-wrap:wrap;margin:24px 0 40px}.files a{padding:9px 14px;background:white;border:1px solid #dbe5df;border-radius:8px;text-decoration:none}
+details{border-top:1px solid #ccd9d0;padding:20px 0}summary{font-size:21px;font-weight:600;cursor:pointer}article{max-width:820px}
+nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{color:#50645e;margin-top:40px;font-size:13px}
+@media(max-width:700px){main{padding:32px 20px}.grid{grid-template-columns:1fr}h1{font-size:32px}.wide{grid-column:auto}}
+@media print{details>*{display:block!important}main{padding:0}.files,nav{display:none}.card{break-inside:avoid}}
+</style></head><body><main>
+<span class="status">Approved submission materials · store submission pending</span>
+<h1>SiteClock</h1><p class="intro">A minimal website timer. Here are the package, artwork, and store copy.</p>
+<nav><a href="#artwork">Artwork</a><a href="#screenshots">Screenshots</a><a href="#copy">Listing copy</a><a href="#privacy">Privacy</a></nav>
+<div class="files"><a href="../dist/siteclock-0.1.0.zip">Release ZIP · v0.1.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
+<h2 id="artwork">Icon &amp; promotional artwork</h2><div class="grid">
+<figure class="card"><img src="assets/icon-preview.png" alt="Browser-window clock icon on light and dark backgrounds"><figcaption>Browser outline + clock hands. Slate and mint. PNG sizes: 16, 32, 48, and 128 pixels. <a href="../icons/siteclock.svg">Editable SVG</a>.</figcaption></figure>
+<figure class="card"><a href="assets/promo-small-440x280.png"><img src="assets/promo-small-440x280.png" alt="SiteClock — Time spent on each website."></a><figcaption>Required small promotional tile · 440 × 280.</figcaption></figure>
+<figure class="card wide"><a href="assets/promo-marquee-1400x560.png"><img src="assets/promo-marquee-1400x560.png" alt="SiteClock — Time spent on each website. A small timer. A running total. Stored locally."></a><figcaption>Optional marquee · 1400 × 560.</figcaption></figure></div>
+<h2 id="screenshots">Live screenshots</h2><p>The installed extension on a neutral public page. These are genuine captures, not simulated product UI.</p><div class="grid"><figure class="card"><a href="screenshots/02-on-page-timer-640x400.png"><img src="screenshots/02-on-page-timer-640x400.png" alt="SiteClock timer on the public example domain"></a><figcaption>Compact live capture · 640 × 400. Actual capture; the timer is paused at zero on this new site. No personal browsing history is shown.</figcaption></figure><figure class="card"><a href="screenshots/01-on-page-timer-1280x800.png"><img src="screenshots/01-on-page-timer-1280x800.png" alt="SiteClock timer on the public example domain"></a><figcaption>Full live capture · 1280 × 800. Actual capture; the timer is paused at zero on this new site. No personal browsing history is shown.</figcaption></figure></div>
+<h2 id="copy">Copy &amp; disclosures</h2><details open><summary>Store listing</summary><h1>Chrome Web Store listing draft</h1>
+<h2>Name</h2>
+<p>SiteClock</p>
+<h2>Short description</h2>
+<p>See your total time on each website in a small on-page timer. All data stays on your computer.</p>
+<h2>Detailed description</h2>
+<p>SiteClock keeps a running total of the time you spend on each website and shows it in a small timer in the corner of the page.</p>
+<p>The total carries across pages and visits. Open the toolbar popup to see your website totals, sorted by time spent.</p>
+<ul>
+<li>Counts the selected tab in the focused Chrome window.</li>
+<li>Pauses when Chrome loses focus, your computer locks, or you have been inactive for 30 minutes.</li>
+<li>Keeps totals across browser and computer restarts, with no daily reset.</li>
+<li>Stores data on this computer. No account, syncing, ads, or analytics.</li>
+<li>Groups pages by hostname, ignoring a leading www. Other subdomains are separate.</li>
+</ul>
+<p>The first 30 minutes without input are counted before the inactivity pause. Incognito browsing is not tracked. Chrome&#x27;s internal pages and other protected pages cannot show the timer. Sleep, delayed timers, and sudden shutdowns can cause small amounts of time to go uncounted.</p>
+<p>Removing SiteClock from Chrome deletes its saved totals.</p>
+<h2>Listing fields</h2>
+<ul>
+<li>Category: Productivity (choose the corresponding category in the dashboard).</li>
+<li>Language: English.</li>
+<li>Homepage: https://github.com/raymondethan/siteclock</li>
+<li>Support: https://github.com/raymondethan/siteclock/issues</li>
+<li>Privacy policy: https://github.com/raymondethan/siteclock/blob/master/PRIVACY.md</li>
+<li>Price: Free.</li>
+</ul>
+<h2>Store images</h2>
+<ul>
+<li>Store icon: <code>icons/icon-128.png</code>.</li>
+<li>Required small promotional tile: <code>store/assets/promo-small-440x280.png</code>.</li>
+<li>Optional marquee: <code>store/assets/promo-marquee-1400x560.png</code>.</li>
+<li>Screenshot files and their capture notes are described in <code>store/REVIEW.md</code>.</li>
+</ul>
+<h2>Single purpose</h2>
+<p>Track cumulative active browsing time per website and display it in an on-page timer and a toolbar list of website totals.</p>
+<h2>Review testing instructions</h2>
+<p>Install SiteClock and open an ordinary HTTP or HTTPS website. A small timer appears at the bottom right. Spend a few seconds there, switch to a second website, and return: the first site&#x27;s timer continues from its existing total. Open the SiteClock toolbar popup to see both totals. Switch to another app to pause counting. Restart Chrome and revisit the website to confirm its saved total remains. No login or test account is needed.</p></details>
+<details id="privacy"><summary>Privacy policy</summary><h1>SiteClock Privacy Policy</h1>
+<p>Last updated: October 17, 2026</p>
+<p>SiteClock shows your cumulative active browsing time for each website. Your website totals stay in your Chrome profile on this computer. SiteClock has no account system, analytics service, or server receiving your browsing data.</p>
+<h2>Information used</h2>
+<p>SiteClock uses the current tab&#x27;s URL to determine its hostname, such as <code>example.com</code>. It uses tab and window state and Chrome&#x27;s active, idle, and locked signals to decide when to count time. It does not record your keystrokes, mouse movements, or clicks.</p>
+<p>Chrome may provide tab metadata, including full URLs and titles, while the extension is running. SiteClock uses this information only in memory to identify the active website. It does not persist URL paths, query strings, page titles, or the contents of web pages, forms, passwords, or cookies.</p>
+<p>SiteClock stores the following locally:</p>
+<ul>
+<li>Each website&#x27;s hostname and cumulative active time in milliseconds.</li>
+<li>The last accounting timestamp, active hostname, and tab identifier needed to avoid counting an interval twice.</li>
+<li>A random browser-session identifier used to distinguish a background-worker restart from a full browser restart. It is not sent anywhere or used to identify you across devices.</li>
+</ul>
+<h2>How information is used</h2>
+<p>This information is used only to calculate, save, and display your website timers and totals. A leading <code>www.</code> is removed from hostnames; other subdomains have separate totals. Incognito browsing is not tracked.</p>
+<h2>Storage, retention, and access</h2>
+<p>Website totals are saved using Chrome&#x27;s extension-local storage. They have no automatic expiration and remain across browser and computer restarts. Temporary browser-session state is cleared when Chrome ends or reloads the extension.</p>
+<p>You can view your saved website totals by opening the SiteClock toolbar popup. People and software with access to your Chrome profile or computer may also be able to access this local data. SiteClock does not add its own encryption layer.</p>
+<h2>Sharing and transmission</h2>
+<p>SiteClock does not send browsing data or website totals to its developer or to third parties. It does not sell data, use it for advertising, synchronize it between devices, or include third-party analytics. Its runtime makes no network requests.</p>
+<p>SiteClock follows the Chrome Web Store User Data Policy, including its Limited Use requirements. Browsing information is used solely to provide the website timer and totals, and is not used for advertising or unrelated purposes.</p>
+<h2>Your controls and deletion</h2>
+<p>Disable SiteClock in Chrome&#x27;s extension settings to stop tracking. Disabling it keeps existing totals. Removing SiteClock from Chrome deletes its extension-local data, including all saved totals. SiteClock cannot recover deleted totals.</p>
+<h2>Policy changes</h2>
+<p>If SiteClock&#x27;s handling of data changes, this policy and its last-updated date will be updated with the corresponding release.</p>
+<h2>Contact</h2>
+<p>For questions about this policy, open an issue in the <a href="https://github.com/raymondethan/siteclock/issues">SiteClock project</a>. Issues are public; please do not include your browsing history or other private information in a report.</p></details>
+<details><summary>Dashboard privacy answers</summary><h1>Chrome Web Store privacy fields — draft for review</h1>
+<p>These answers describe the current packaged extension. They are prepared for the publisher to review and enter in the developer dashboard; nothing is submitted. Use the exact field labels presented by the current dashboard.</p>
+<h2>Single purpose</h2>
+<p>Track cumulative active browsing time per website and display it in an on-page timer and a toolbar list of website totals.</p>
+<h2>Permission justifications</h2>
+<h3>storage</h3>
+<p>Save hostname-to-duration totals and accounting checkpoints on this computer so totals persist across visits and browser restarts. Session storage distinguishes worker restarts from browser restarts. No data is synchronized or transmitted.</p>
+<h3>tabs</h3>
+<p>Identify the hostname of the selected tab and detect tab switches, navigation, and closures so elapsed time is assigned to the correct website. Full URLs and other browser-provided tab metadata are transient; only hostnames and accounting metadata are persisted.</p>
+<h3>idle</h3>
+<p>Pause timing when Chrome reports that the machine is locked or has received no user input for 30 minutes, and resume when it becomes active. SiteClock does not record individual keystrokes, mouse movements, or clicks.</p>
+<h3>alarms</h3>
+<p>Periodically reconcile the active window, selected tab, and idle state if an event was missed or the background worker restarted. This keeps the timer aligned with the current browser state.</p>
+<h3>Website access / content script matches</h3>
+<p>HTTP and HTTPS content scripts display the timer automatically on the websites the user visits and send periodic checkpoints to the background worker. Broad website access supports timing arbitrary websites, which is the extension&#x27;s single purpose. The scripts do not inspect page text or form contents. No script runs in subframes; incognito tracking is disabled.</p>
+<h2>Remote code</h2>
+<p>No, this extension does not use remote code. All JavaScript, styles, and icons are included in the package. There are no runtime network requests, external script libraries, or dynamically downloaded executable code.</p>
+<h2>Data-type disclosures</h2>
+<p>Disclose local processing as well as transmission; do not claim that the extension handles no user data just because it has no server.</p>
+<ul>
+<li><strong>Web history / web browsing activity:</strong> Yes. The extension processes tab URLs to identify hostnames and retains hostname totals locally. It does not retain visited URL paths, query strings, or page titles.</li>
+<li><strong>User activity:</strong> Yes. The extension measures active browsing duration and uses window focus and Chrome&#x27;s active/idle/locked state. It does not log individual clicks, mouse movements, or keystrokes.</li>
+<li>Other listed categories: not handled by the current functionality. The extension does not intentionally access website content, messages, payment details, authentication data, health data, or precise location.</li>
+</ul>
+<h2>Limited Use certifications</h2>
+<p>The current implementation supports the following statements:</p>
+<ul>
+<li>Data is not sold or transferred to third parties.</li>
+<li>Data is used only for the stated website-timing purpose.</li>
+<li>Data is not used to assess creditworthiness or for lending.</li>
+<li>Browsing data is not used for advertising or unrelated profiling.</li>
+</ul>
+<h2>Privacy policy URL</h2>
+<p>Use https://github.com/raymondethan/siteclock/blob/master/PRIVACY.md. The same policy is available as a standalone HTML source in <code>store/privacy-policy.html</code> if a dedicated hosted page is wanted later.</p>
+<h2>References checked</h2>
+<ul>
+<li>https://developer.chrome.com/docs/webstore/cws-dashboard-privacy</li>
+<li>https://developer.chrome.com/docs/webstore/program-policies/user-data-faq</li>
+<li>https://developer.chrome.com/docs/webstore/images</li>
+<li>https://developer.chrome.com/docs/webstore/prepare</li>
+</ul></details>
+<p class="foot">The ZIP contains only production files and PNG icons. The policy is hosted in the public repository. The store submission is pending; see SUBMISSION.md for account and dashboard steps.</p>
+</main></body></html>

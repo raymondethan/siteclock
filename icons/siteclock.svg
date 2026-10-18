@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>SiteClock — a clock in a browser window</title>
+  <rect x="16" y="16" width="96" height="96" rx="23" fill="#19232b"/>
+  <g fill="none" stroke="#a4e8c2" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="34" y="35" width="60" height="58" rx="10"/>
+    <path d="M35 50h58M64 61v13l12 7"/>
+  </g>
+</svg>

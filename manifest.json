@@ -2,7 +2,13 @@
   "manifest_version": 3,
   "name": "SiteClock",
   "version": "0.1.0",
-  "description": "A small timer showing your cumulative active time on each website. Everything stays on this computer.",
+  "description": "See your total time on each website in a small on-page timer. All data stays on your computer.",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
   "minimum_chrome_version": "120",
   "permissions": ["storage", "tabs", "idle", "alarms"],
   "background": { "service_worker": "background.js" },
@@ -11,6 +17,13 @@
     "js": ["content.js"],
     "run_at": "document_idle"
   }],
-  "action": { "default_title": "SiteClock", "default_popup": "popup.html" },
+  "action": {
+    "default_title": "SiteClock",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
   "incognito": "not_allowed"
 }

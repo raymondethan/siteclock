@@ -3,6 +3,14 @@
 A dependency-free Chrome extension that shows cumulative active browsing time in
 a small corner timer.
 
+## Chrome Web Store submission
+
+Open `store/review.html` locally to review the icon, promotional artwork, live
+screenshots, listing copy, and privacy disclosures. See `store/REVIEW.md` for
+rebuild commands and package details. The store submission is not complete yet.
+The public privacy policy is [PRIVACY.md](https://github.com/raymondethan/siteclock/blob/master/PRIVACY.md).
+See `store/SUBMISSION.md` for the current submission checklist.
+
 ## Install locally
 
 1. Open `chrome://extensions` in Chrome.

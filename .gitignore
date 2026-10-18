@@ -1,5 +1,6 @@
 .DS_Store
 .test-build/
+dist/
 
 # Local credentials and Chrome extension signing keys
 .env

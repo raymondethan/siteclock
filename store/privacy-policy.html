@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SiteClock Privacy Policy</title><style>
+:root{color-scheme:light;font:16px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#19232b;background:#f4f8f6}
+*{box-sizing:border-box}body{margin:0}main{max-width:1080px;margin:0 auto;padding:64px 32px 96px}
+h1,h2,h3{line-height:1.2;letter-spacing:-.025em}h1{font-size:42px;margin:0 0 18px}h2{margin:40px 0 16px;font-size:26px}
+h3{margin-top:28px;font-size:19px}p,li{max-width:78ch}a{color:#176244;text-underline-offset:3px}code{font-size:.88em;overflow-wrap:anywhere}
+.intro{font-size:19px;color:#50645e}.status{display:inline-block;padding:5px 12px;border:1px solid #b8cfc2;border-radius:99px;font-size:12px;margin-bottom:20px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}.card{background:white;border:1px solid #dbe5df;border-radius:16px;padding:24px;overflow:hidden}
+figure{margin:0}figcaption{font-size:13px;color:#50645e;margin-top:12px}img{max-width:100%;height:auto;display:block;border-radius:8px}
+.wide{grid-column:1/-1}.files{display:flex;gap:14px;flex-wrap:wrap;margin:24px 0 40px}.files a{padding:9px 14px;background:white;border:1px solid #dbe5df;border-radius:8px;text-decoration:none}
+details{border-top:1px solid #ccd9d0;padding:20px 0}summary{font-size:21px;font-weight:600;cursor:pointer}article{max-width:820px}
+nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{color:#50645e;margin-top:40px;font-size:13px}
+@media(max-width:700px){main{padding:32px 20px}.grid{grid-template-columns:1fr}h1{font-size:32px}.wide{grid-column:auto}}
+@media print{details>*{display:block!important}main{padding:0}.files,nav{display:none}.card{break-inside:avoid}}
+</style></head><body><main><article><h1>SiteClock Privacy Policy</h1>
+<p>Last updated: October 17, 2026</p>
+<p>SiteClock shows your cumulative active browsing time for each website. Your website totals stay in your Chrome profile on this computer. SiteClock has no account system, analytics service, or server receiving your browsing data.</p>
+<h2>Information used</h2>
+<p>SiteClock uses the current tab&#x27;s URL to determine its hostname, such as <code>example.com</code>. It uses tab and window state and Chrome&#x27;s active, idle, and locked signals to decide when to count time. It does not record your keystrokes, mouse movements, or clicks.</p>
+<p>Chrome may provide tab metadata, including full URLs and titles, while the extension is running. SiteClock uses this information only in memory to identify the active website. It does not persist URL paths, query strings, page titles, or the contents of web pages, forms, passwords, or cookies.</p>
+<p>SiteClock stores the following locally:</p>
+<ul>
+<li>Each website&#x27;s hostname and cumulative active time in milliseconds.</li>
+<li>The last accounting timestamp, active hostname, and tab identifier needed to avoid counting an interval twice.</li>
+<li>A random browser-session identifier used to distinguish a background-worker restart from a full browser restart. It is not sent anywhere or used to identify you across devices.</li>
+</ul>
+<h2>How information is used</h2>
+<p>This information is used only to calculate, save, and display your website timers and totals. A leading <code>www.</code> is removed from hostnames; other subdomains have separate totals. Incognito browsing is not tracked.</p>
+<h2>Storage, retention, and access</h2>
+<p>Website totals are saved using Chrome&#x27;s extension-local storage. They have no automatic expiration and remain across browser and computer restarts. Temporary browser-session state is cleared when Chrome ends or reloads the extension.</p>
+<p>You can view your saved website totals by opening the SiteClock toolbar popup. People and software with access to your Chrome profile or computer may also be able to access this local data. SiteClock does not add its own encryption layer.</p>
+<h2>Sharing and transmission</h2>
+<p>SiteClock does not send browsing data or website totals to its developer or to third parties. It does not sell data, use it for advertising, synchronize it between devices, or include third-party analytics. Its runtime makes no network requests.</p>
+<p>SiteClock follows the Chrome Web Store User Data Policy, including its Limited Use requirements. Browsing information is used solely to provide the website timer and totals, and is not used for advertising or unrelated purposes.</p>
+<h2>Your controls and deletion</h2>
+<p>Disable SiteClock in Chrome&#x27;s extension settings to stop tracking. Disabling it keeps existing totals. Removing SiteClock from Chrome deletes its extension-local data, including all saved totals. SiteClock cannot recover deleted totals.</p>
+<h2>Policy changes</h2>
+<p>If SiteClock&#x27;s handling of data changes, this policy and its last-updated date will be updated with the corresponding release.</p>
+<h2>Contact</h2>
+<p>For questions about this policy, open an issue in the <a href="https://github.com/raymondethan/siteclock/issues">SiteClock project</a>. Issues are public; please do not include your browsing history or other private information in a report.</p></article></main></body></html>
