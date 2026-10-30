@@ -1,0 +1,30 @@
+# Project-specific deployment invariants. These are not a full compliance framework.
+rule encrypted_storage {
+  Resources.Data.Properties.SSESpecification.SSEEnabled == true
+  Resources.Data.DeletionPolicy == 'Retain'
+  Resources.Data.UpdateReplacePolicy == 'Retain'
+  Resources.Users.DeletionPolicy == 'Retain'
+}
+rule no_extension_client_secret {
+  Resources.App.Properties.GenerateSecret == false
+  Resources.App.Properties.AllowedOAuthFlows == ['code']
+  Resources.App.Properties.SupportedIdentityProviders == ['Google']
+}
+rule bounded_logs {
+  Resources.ApiLogs.Properties.RetentionInDays <= 14
+  Resources.HandlerLogs.Properties.RetentionInDays <= 14
+  Resources.CleanupLogs.Properties.RetentionInDays <= 14
+}
+rule private_api {
+  Resources.Api.Properties.Auth.DefaultAuthorizer == 'Cognito'
+  Resources.Handler.Properties.Events.*.Properties.Auth.AuthorizationScopes == ['openid']
+}
+rule bounded_runtime {
+  Resources.Handler.Properties.Timeout <= 28
+  Resources.Handler.Properties.ReservedConcurrentExecutions <= 10
+  Resources.Cleanup.Properties.ReservedConcurrentExecutions == 1
+}
+rule encrypted_alerts {
+  Resources.Alerts.Properties.KmsMasterKeyId exists
+  Resources.AlertKey.Properties.EnableKeyRotation == true
+}

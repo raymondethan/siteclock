@@ -1,4 +1,4 @@
-importScripts('core.js');
+importScripts('sync-core.js', 'core.js', 'cloud-config.js', 'cloud-client.js');
 
 const { hostname, IDLE_SECONDS, Tracker, SerialQueue } = SiteClockCore;
 const queue = new SerialQueue();
@@ -8,6 +8,10 @@ let focusedWindowId = chrome.windows.WINDOW_ID_NONE;
 let idleState = 'active';
 let tracker;
 let initialized = false;
+let syncing = null;
+let controlling = false;
+let controlTail = Promise.resolve();
+let syncRevision = 0;
 
 function remember(tab) {
   tabs.set(tab.id, { ...tab });
@@ -60,7 +64,7 @@ async function initialize(at) {
   await chrome.storage.session.set({ browserSessionId: sessionId });
   await refreshWindows();
   idleState = await chrome.idle.queryState(IDLE_SECONDS);
-  tracker = new Tracker(siteclock, sessionId, at);
+  tracker = new Tracker(siteclock, sessionId, at, () => crypto.randomUUID());
   // Reconcile against the live browser. A different browser session never
   // resumes an old timestamp, so overnight downtime is never counted.
   tracker.transition(currentActive(), at);
@@ -68,6 +72,7 @@ async function initialize(at) {
   if (!await chrome.alarms.get('siteclock:reconcile')) {
     await chrome.alarms.create('siteclock:reconcile', { periodInMinutes: 0.5 });
   }
+  await chrome.alarms.create('siteclock:sync', { periodInMinutes: 1 });
   initialized = true;
   await notify([tracker.active?.tabId]);
 }
@@ -134,6 +139,7 @@ chrome.windows.onFocusChanged.addListener(windowId => event(async () => {
 }));
 chrome.idle.onStateChanged.addListener(state => event(async () => { idleState = state; }));
 chrome.alarms.onAlarm.addListener(alarm => {
+  if (alarm.name === 'siteclock:sync') { void syncCloud(); return; }
   if (alarm.name !== 'siteclock:reconcile') return;
   event(async () => {
     await refreshWindows();
@@ -177,9 +183,13 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     dispatch(async () => {
       await refreshWindows();
       idleState = await chrome.idle.queryState(IDLE_SECONDS);
-    }, at).then(() => respond({ totals: { ...tracker.totals }, active: tracker.active }), error => {
+    }, at).then(() => respond({ totals: tracker.displayTotals(), active: tracker.active, cloud: cloudStatus() }), error => {
       report(error); respond({ error: 'Could not load totals.' });
     });
+    return true;
+  }
+  if (message?.type?.startsWith('siteclock:cloud:') && !sender.tab) {
+    controlCloud(message).then(respond, error => respond({ error: error.message }));
     return true;
   }
 });
@@ -187,4 +197,139 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 chrome.idle.setDetectionInterval(IDLE_SECONDS);
 // Rehydrate on every worker start; storage.session distinguishes this from a
 // full browser restart. Browser startup/onInstalled also run this top-level code.
-queue.push(() => initialize(Date.now())).catch(report);
+queue.push(() => initialize(Date.now())).then(() => syncCloud(true)).catch(report);
+
+
+function cloudStatus() {
+  const account = tracker.ledger.account;
+  return { configured: SiteClockCloud.configured, signedIn: Boolean(account), email: account?.email,
+    enabled: Boolean(account?.enabled), lastSync: account?.lastSync, error: account?.error,
+    syncing: Boolean(syncing), localOnly: Boolean(account && Object.keys(account.localOnly).length) };
+}
+
+async function mutateCloud(change) {
+  const at = Date.now();
+  return queue.push(async () => {
+    if (!initialized) await initialize(at);
+    tracker.transition(currentActive(), at);
+    const result = change(tracker.ledger);
+    tracker.bindLedger();
+    await save();
+    await notify([tracker.active?.tabId]);
+    return result;
+  });
+}
+
+function syncCloud(force = false) {
+  if (!SiteClockCloud.configured || controlling) return Promise.resolve();
+  if (syncing) return syncing;
+  syncing = (async () => {
+    const at = Date.now();
+    const captured = await queue.push(async () => {
+      if (controlling || !initialized || !tracker.ledger.account?.enabled) return null;
+      const a = tracker.ledger.account;
+      if (!force && (at < a.retryAt || (a.lastSync && at - a.lastSync < 60_000))) return null;
+      tracker.transition(currentActive(), at);
+      await save();
+      return { accountId: tracker.ledger.state.accountId, installationId: tracker.ledger.state.installationId,
+        generation: a.generation, revision: syncRevision, rows: tracker.ledger.pending() };
+    });
+    if (!captured) return;
+    const valid = () => !controlling && tracker.ledger.state.accountId === captured.accountId &&
+      tracker.ledger.account?.enabled && syncRevision === captured.revision;
+    const call = (path, method, body) => SiteClockCloud.api(path, method, body, captured.accountId);
+    try {
+      const account = await call('/v1/account');
+      if (account.generation !== captured.generation) {
+        await mutateCloud(ledger => { if (valid()) { ledger.generation(account.generation); syncRevision++; } });
+        return;
+      }
+      if (!valid()) return;
+      await call('/v1/installations', 'PUT', { generation: captured.generation, installationId: captured.installationId });
+      for (let index = 0; index < captured.rows.length; index += 50) {
+        if (!valid()) return;
+        const batch = captured.rows.slice(index, index + 50);
+        await call('/v1/usage', 'PUT', { generation: captured.generation, installationId: captured.installationId, counters: batch });
+        await mutateCloud(ledger => { if (valid()) ledger.acknowledge(batch); });
+      }
+      let cursor;
+      do {
+        if (!valid()) return;
+        const query = new URLSearchParams({ generation: captured.generation });
+        if (cursor) query.set('cursor', cursor);
+        const page = await call(`/v1/usage?${query}`);
+        await mutateCloud(ledger => { if (valid()) ledger.merge(page.contributions); });
+        cursor = page.cursor;
+      } while (cursor);
+      await mutateCloud(ledger => {
+        if (!valid()) return;
+        Object.assign(ledger.account, { lastSync: Date.now(), error: null, failures: 0, retryAt: 0 });
+      });
+    } catch (error) {
+      if (!valid()) return;
+      if (error.status === 409) {
+        try {
+          const account = await call('/v1/account');
+          await mutateCloud(ledger => { if (valid()) { ledger.generation(account.generation); syncRevision++; } });
+          return;
+        } catch { /* Preserve the original error and retry. */ }
+      }
+      await mutateCloud(ledger => {
+        if (!valid()) return;
+        const a = ledger.account;
+        a.failures++;
+        a.retryAt = Date.now() + Math.min(30 * 60_000, 60_000 * 2 ** Math.min(a.failures - 1, 5)) * (0.75 + Math.random() * 0.5);
+        a.error = error.status === 401 ? 'Sign in again to resume backup.' : 'Could not sync. Local tracking continues; backup will retry.';
+        if (error.status === 401) a.enabled = false;
+      });
+    }
+  })().catch(report).finally(() => { syncing = null; });
+  return syncing;
+}
+
+function controlCloud(message) {
+  const action = message.type.slice('siteclock:cloud:'.length);
+  if (action === 'status') return queue.push(() => cloudStatus());
+  if (action === 'sync') return syncCloud(true).then(() => queue.push(() => cloudStatus()));
+  const task = controlTail.then(async () => {
+    // Invalidate merges immediately; wait for outstanding authenticated requests
+    // before changing credentials, so one account can never upload another's counters.
+    controlling = true;
+    syncRevision++;
+    try {
+      if (syncing) await syncing;
+      if (action === 'signin') {
+        const account = await SiteClockCloud.signIn();
+        await mutateCloud(ledger => {
+          if (ledger.state.accountId !== account.accountId) ledger.pause();
+          ledger.signIn(account.accountId, account.email);
+          ledger.generation(account.generation);
+        });
+      } else if (action === 'signout') {
+        await mutateCloud(ledger => ledger.signOut());
+        await SiteClockCloud.signOut();
+      } else if (action === 'enable') {
+        const id = tracker.ledger.state.accountId;
+        if (!id) throw Error('Sign in first.');
+        const account = await SiteClockCloud.api('/v1/account', 'GET', undefined, id);
+        await mutateCloud(ledger => ledger.enable(account.generation));
+      } else if (action === 'pause') {
+        await mutateCloud(ledger => ledger.pause());
+      } else if (action === 'delete') {
+        const id = tracker.ledger.state.accountId;
+        if (!id) throw Error('Sign in first.');
+        // Persist the expected generation before sending, making crash/retry safe.
+        const expected = await mutateCloud(ledger => {
+          ledger.pause();
+          return ledger.account.generation;
+        });
+        const result = await SiteClockCloud.api('/v1/usage', 'DELETE', { generation: expected }, id);
+        await mutateCloud(ledger => ledger.generation(result.generation));
+      } else if (action !== 'retry') throw Error('Unknown cloud action.');
+    } finally { controlling = false; }
+    if (action === 'enable' || action === 'retry') await syncCloud(true);
+    return queue.push(() => cloudStatus());
+  });
+  controlTail = task.catch(() => {});
+  return task;
+}

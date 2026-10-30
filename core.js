@@ -24,16 +24,22 @@ globalThis.SiteClockCore = (() => {
   }
 
   class Tracker {
-    constructor(saved, sessionId, at) {
+    constructor(saved, sessionId, at, newId = () => crypto.randomUUID()) {
       this.totals = Object.create(null);
       for (const [host, ms] of Object.entries(saved?.totals || {})) {
         if (Number.isSafeInteger(ms) && ms >= 0) this.totals[host] = ms;
       }
+      this.ledger = new SiteClockSync.Ledger(saved?.cloud, this.totals, newId);
+      this.bindLedger();
       this.sessionId = sessionId;
       this.active = saved?.sessionId === sessionId ? saved.active : null;
       this.lastAt = saved?.sessionId === sessionId && Number.isFinite(saved.lastAt)
         ? saved.lastAt : at;
     }
+
+    bindLedger() { this.totals = this.ledger.local(); }
+
+    displayTotals() { return this.ledger.totals(); }
 
     transition(next, at) {
       const gap = at - this.lastAt;
@@ -54,7 +60,7 @@ globalThis.SiteClockCore = (() => {
     snapshot(host, tabId) {
       return {
         hostname: host,
-        totalMs: this.totals[host] || 0,
+        totalMs: this.displayTotals()[host] || 0,
         running: Boolean(this.active && this.active.tabId === tabId && this.active.hostname === host),
         asOf: this.lastAt,
         maxGapMs: MAX_GAP_MS
@@ -63,7 +69,7 @@ globalThis.SiteClockCore = (() => {
 
     serialize() {
       return {
-        version: 1, totals: { ...this.totals }, sessionId: this.sessionId,
+        version: 2, totals: { ...this.totals }, cloud: this.ledger.state, sessionId: this.sessionId,
         active: this.active, lastAt: this.lastAt
       };
     }

@@ -73,9 +73,9 @@ function environment(persistent = {}, session = {}) {
     }
   };
   env.start = async () => {
-    const factory = new Function('chrome', 'importScripts', 'SiteClockCore', 'crypto', 'Date', 'console',
-      backgroundSource + '\nreturn { drain: () => queue.tail };');
-    env.worker = factory(env.chrome, () => {}, SiteClockCore,
+    const factory = new Function('chrome', 'importScripts', 'SiteClockCore', 'SiteClockSync', 'SiteClockCloud', 'crypto', 'Date', 'console',
+      backgroundSource + '\nreturn { drain: () => queue.tail, syncCloud, controlCloud, cloudStatus };');
+    env.worker = factory(env.chrome, () => {}, SiteClockCore, SiteClockSync, env.cloud || { configured: false },
       { randomUUID: () => `session-${env.now}` }, { now: () => env.now },
       { error: (...args) => env.errors.push(args.join(' ')) });
     await env.worker.drain();

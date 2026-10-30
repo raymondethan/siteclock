@@ -8,7 +8,8 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 manifest = json.loads((ROOT / 'manifest.json').read_text())
 paths = ['manifest.json', 'background.js', 'core.js', 'content.js',
-         'popup.html', 'popup.css', 'popup.js']
+         'popup.html', 'popup.css', 'popup.js', 'sync-core.js', 'cloud-config.js',
+         'cloud-client.js', 'options.html', 'options.css', 'options.js']
 paths += sorted(set(manifest['icons'].values()) | set(manifest['action']['default_icon'].values()))
 assert manifest['manifest_version'] == 3
 assert len(manifest['description']) <= 132

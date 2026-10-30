@@ -42,6 +42,7 @@ do {
         context.evaluateScript("new Function(syntaxSource)")
     }
     context.setObject(try source("background.js"), forKeyedSubscript: "backgroundSource" as NSString)
+    context.evaluateScript(try source("sync-core.js"), withSourceURL: root.appendingPathComponent("sync-core.js"))
     context.evaluateScript(try source("core.js"), withSourceURL: root.appendingPathComponent("core.js"))
     context.evaluateScript(try source("tests/suite.js"), withSourceURL: root.appendingPathComponent("tests/suite.js"))
     if context.objectForKeyedSubscript("testDone")?.toBool() != true {

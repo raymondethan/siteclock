@@ -1,0 +1,1000 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "Optional SiteClock account backup with Google federation, an authenticated API and generation-guarded per-installation counters.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    }
+  },
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "AllowedValues": [
+        "dev",
+        "prod"
+      ],
+      "Default": "dev"
+    },
+    "ExtensionId": {
+      "Type": "String",
+      "AllowedPattern": "[a-p]{32}"
+    },
+    "GoogleClientId": {
+      "Type": "String",
+      "AllowedPattern": "[A-Za-z0-9._-]+\\.apps\\.googleusercontent\\.com"
+    },
+    "GoogleSecretArn": {
+      "Type": "String",
+      "AllowedPattern": "arn:aws[a-z-]*:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:.+"
+    },
+    "AuthDomainPrefix": {
+      "Type": "String",
+      "AllowedPattern": "[a-z0-9][a-z0-9-]{1,61}[a-z0-9]"
+    },
+    "AlertEmail": {
+      "Type": "String",
+      "AllowedPattern": "[^@\\s]+@[^@\\s]+\\.[^@\\s]+"
+    }
+  },
+  "Conditions": {
+    "Production": {
+      "Fn::Equals": [
+        {
+          "Ref": "Environment"
+        },
+        "prod"
+      ]
+    }
+  },
+  "Resources": {
+    "Data": {
+      "Type": "AWS::DynamoDB::Table",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Per-installation monotonic counters and persistent deletion jobs",
+          "must": [
+            "Retain table on stack deletion or replacement",
+            "Generation checks and uploads must be transactional"
+          ]
+        }
+      },
+      "Properties": {
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "pk",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "sk",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "pk",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "sk",
+            "KeyType": "RANGE"
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "DeletionProtectionEnabled": {
+          "Fn::If": [
+            "Production",
+            true,
+            false
+          ]
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": {
+            "Fn::If": [
+              "Production",
+              true,
+              false
+            ]
+          },
+          "RecoveryPeriodInDays": 7
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "Users": {
+      "Type": "AWS::Cognito::UserPool",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Google federation; no native password sign-up",
+          "must": [
+            "Preserve user pool identity across releases"
+          ]
+        }
+      },
+      "Properties": {
+        "UserPoolName": {
+          "Fn::Sub": "${AWS::StackName}-users"
+        },
+        "UserPoolTier": "ESSENTIALS",
+        "DeletionProtection": {
+          "Fn::If": [
+            "Production",
+            "ACTIVE",
+            "INACTIVE"
+          ]
+        },
+        "UsernameAttributes": [
+          "email"
+        ],
+        "AutoVerifiedAttributes": [
+          "email"
+        ],
+        "AdminCreateUserConfig": {
+          "AllowAdminCreateUserOnly": true
+        },
+        "Schema": [
+          {
+            "Name": "email",
+            "AttributeDataType": "String",
+            "Mutable": true,
+            "Required": true
+          }
+        ]
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "Google": {
+      "Type": "AWS::Cognito::UserPoolIdentityProvider",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Google OAuth secret resolves server-side",
+          "must": [
+            "Never put the provider secret in extension assets"
+          ]
+        }
+      },
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "Users"
+        },
+        "ProviderName": "Google",
+        "ProviderType": "Google",
+        "ProviderDetails": {
+          "client_id": {
+            "Ref": "GoogleClientId"
+          },
+          "client_secret": {
+            "Fn::Sub": "{{resolve:secretsmanager:${GoogleSecretArn}:SecretString:client_secret}}"
+          },
+          "authorize_scopes": "openid email profile"
+        },
+        "AttributeMapping": {
+          "email": "email",
+          "username": "sub"
+        }
+      }
+    },
+    "App": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Public PKCE client for one stable extension ID",
+          "must": [
+            "No client secret; tokens restricted to this client"
+          ]
+        }
+      },
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "Users"
+        },
+        "ClientName": {
+          "Fn::Sub": "${AWS::StackName}-extension"
+        },
+        "GenerateSecret": false,
+        "SupportedIdentityProviders": [
+          "Google"
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "AllowedOAuthFlows": [
+          "code"
+        ],
+        "AllowedOAuthScopes": [
+          "openid",
+          "email"
+        ],
+        "CallbackURLs": [
+          {
+            "Fn::Sub": "https://${ExtensionId}.chromiumapp.org/oauth2"
+          }
+        ],
+        "LogoutURLs": [
+          {
+            "Fn::Sub": "https://${ExtensionId}.chromiumapp.org/"
+          }
+        ],
+        "EnableTokenRevocation": true,
+        "RefreshTokenRotation": {
+          "Feature": "ENABLED",
+          "RetryGracePeriodSeconds": 10
+        },
+        "AccessTokenValidity": 1,
+        "IdTokenValidity": 1,
+        "RefreshTokenValidity": 30,
+        "TokenValidityUnits": {
+          "AccessToken": "hours",
+          "IdToken": "hours",
+          "RefreshToken": "days"
+        },
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_AUTH"
+        ]
+      },
+      "DependsOn": "Google"
+    },
+    "Domain": {
+      "Type": "AWS::Cognito::UserPoolDomain",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "AWS-hosted OAuth domain avoids custom-domain charges",
+          "must": []
+        }
+      },
+      "Properties": {
+        "Domain": {
+          "Ref": "AuthDomainPrefix"
+        },
+        "UserPoolId": {
+          "Ref": "Users"
+        },
+        "ManagedLoginVersion": 2
+      }
+    },
+    "Branding": {
+      "Type": "AWS::Cognito::ManagedLoginBranding",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Provision required managed-login branding",
+          "must": []
+        }
+      },
+      "Properties": {
+        "UserPoolId": {
+          "Ref": "Users"
+        },
+        "ClientId": {
+          "Ref": "App"
+        },
+        "UseCognitoProvidedValues": true
+      },
+      "DependsOn": "Domain"
+    },
+    "Api": {
+      "Type": "AWS::Serverless::HttpApi",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "HTTP API provides JWT auth at lower cost than REST API",
+          "must": [
+            "Every application route requires access-token authorization",
+            "Do not log request bodies or authorization headers"
+          ]
+        }
+      },
+      "Properties": {
+        "StageName": "$default",
+        "Auth": {
+          "DefaultAuthorizer": "Cognito",
+          "Authorizers": {
+            "Cognito": {
+              "IdentitySource": "$request.header.Authorization",
+              "JwtConfiguration": {
+                "issuer": {
+                  "Fn::Sub": "https://cognito-idp.${AWS::Region}.amazonaws.com/${Users}"
+                },
+                "audience": [
+                  {
+                    "Ref": "App"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "DefaultRouteSettings": {
+          "ThrottlingBurstLimit": 20,
+          "ThrottlingRateLimit": 10
+        },
+        "CorsConfiguration": {
+          "AllowOrigins": [
+            {
+              "Fn::Sub": "chrome-extension://${ExtensionId}"
+            }
+          ],
+          "AllowMethods": [
+            "GET",
+            "PUT",
+            "DELETE",
+            "OPTIONS"
+          ],
+          "AllowHeaders": [
+            "Authorization",
+            "Content-Type"
+          ]
+        },
+        "AccessLogSettings": {
+          "DestinationArn": {
+            "Fn::GetAtt": [
+              "ApiLogs",
+              "Arn"
+            ]
+          },
+          "Format": "{\"requestId\":\"$context.requestId\",\"status\":\"$context.status\",\"route\":\"$context.routeKey\",\"latency\":\"$context.responseLatency\"}"
+        }
+      }
+    },
+    "ApiLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Bound log retention and storage costs",
+          "must": []
+        }
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "${AWS::StackName}-access"
+        },
+        "RetentionInDays": 14
+      }
+    },
+    "HandlerLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Bound log retention and storage costs",
+          "must": []
+        }
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-api"
+        },
+        "RetentionInDays": 14
+      }
+    },
+    "CleanupLogs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Bound log retention and storage costs",
+          "must": []
+        }
+      },
+      "Properties": {
+        "LogGroupName": {
+          "Fn::Sub": "/aws/lambda/${AWS::StackName}-cleanup"
+        },
+        "RetentionInDays": 14
+      }
+    },
+    "ApiRole": {
+      "Type": "AWS::IAM::Role",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate execution permissions for sync and cleanup",
+          "must": [
+            "Scope database access to this stack table",
+            "Lambda execution-role assumption does not supply SourceArn/SourceAccount"
+          ]
+        }
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "storage-and-logs",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:GetItem",
+                    "dynamodb:PutItem",
+                    "dynamodb:UpdateItem",
+                    "dynamodb:ConditionCheckItem",
+                    "dynamodb:Query"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Data",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "HandlerLogs",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "CleanupRole": {
+      "Type": "AWS::IAM::Role",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate execution permissions for sync and cleanup",
+          "must": [
+            "Scope database access to this stack table",
+            "Lambda execution-role assumption does not supply SourceArn/SourceAccount"
+          ]
+        }
+      },
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "storage-and-logs",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "dynamodb:Query",
+                    "dynamodb:DeleteItem",
+                    "dynamodb:BatchWriteItem"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "Data",
+                      "Arn"
+                    ]
+                  }
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": {
+                    "Fn::GetAtt": [
+                      "CleanupLogs",
+                      "Arn"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "Handler": {
+      "Type": "AWS::Serverless::Function",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Bounded event handlers; no persistent server or VPC costs",
+          "must": [
+            "All account IDs come from validated token claims",
+            "Uploads condition-check the account generation"
+          ]
+        },
+        "BuildMethod": "makefile"
+      },
+      "Properties": {
+        "CodeUri": ".",
+        "Handler": "src/handler.handler",
+        "Runtime": "nodejs22.x",
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 256,
+        "Timeout": 28,
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-api"
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "ApiRole",
+            "Arn"
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "TABLE_NAME": {
+              "Ref": "Data"
+            }
+          }
+        },
+        "ReservedConcurrentExecutions": 10,
+        "Events": {
+          "Account": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "Api"
+              },
+              "Method": "GET",
+              "Path": "/v1/account",
+              "Auth": {
+                "AuthorizationScopes": [
+                  "openid"
+                ]
+              }
+            }
+          },
+          "Register": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "Api"
+              },
+              "Method": "PUT",
+              "Path": "/v1/installations",
+              "Auth": {
+                "AuthorizationScopes": [
+                  "openid"
+                ]
+              }
+            }
+          },
+          "Upload": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "Api"
+              },
+              "Method": "PUT",
+              "Path": "/v1/usage",
+              "Auth": {
+                "AuthorizationScopes": [
+                  "openid"
+                ]
+              }
+            }
+          },
+          "Download": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "Api"
+              },
+              "Method": "GET",
+              "Path": "/v1/usage",
+              "Auth": {
+                "AuthorizationScopes": [
+                  "openid"
+                ]
+              }
+            }
+          },
+          "Delete": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "Api"
+              },
+              "Method": "DELETE",
+              "Path": "/v1/usage",
+              "Auth": {
+                "AuthorizationScopes": [
+                  "openid"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "Cleanup": {
+      "Type": "AWS::Serverless::Function",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Resume deletion jobs from DynamoDB; failed batches remain retryable",
+          "must": [
+            "Never delete the current generation"
+          ]
+        },
+        "BuildMethod": "makefile"
+      },
+      "Properties": {
+        "CodeUri": ".",
+        "Handler": "src/handler.cleanup",
+        "Runtime": "nodejs22.x",
+        "Architectures": [
+          "arm64"
+        ],
+        "MemorySize": 256,
+        "Timeout": 120,
+        "FunctionName": {
+          "Fn::Sub": "${AWS::StackName}-cleanup"
+        },
+        "Role": {
+          "Fn::GetAtt": [
+            "CleanupRole",
+            "Arn"
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "TABLE_NAME": {
+              "Ref": "Data"
+            }
+          }
+        },
+        "ReservedConcurrentExecutions": 1,
+        "Events": {
+          "Schedule": {
+            "Type": "Schedule",
+            "Properties": {
+              "Schedule": "rate(5 minutes)",
+              "Enabled": true
+            }
+          }
+        }
+      }
+    },
+    "Alerts": {
+      "Type": "AWS::SNS::Topic",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Deliver operational and budget alerts",
+          "must": [
+            "Subscription must be confirmed"
+          ]
+        }
+      },
+      "Properties": {
+        "Subscription": [
+          {
+            "Protocol": "email",
+            "Endpoint": {
+              "Ref": "AlertEmail"
+            }
+          }
+        ],
+        "KmsMasterKeyId": {
+          "Fn::GetAtt": [
+            "AlertKey",
+            "Arn"
+          ]
+        }
+      }
+    },
+    "AlertPolicy": {
+      "Type": "AWS::SNS::TopicPolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Limit service publication to this account",
+          "must": []
+        }
+      },
+      "Properties": {
+        "Topics": [
+          {
+            "Ref": "Alerts"
+          }
+        ],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com"
+              },
+              "Action": "sns:Publish",
+              "Resource": {
+                "Ref": "Alerts"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "AlertKey": {
+      "Type": "AWS::KMS::Key",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Encrypt operational alerts with explicit service access",
+          "must": [
+            "Key must remain available while the alert topic uses it"
+          ]
+        }
+      },
+      "Properties": {
+        "EnableKeyRotation": true,
+        "KeyPolicy": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AccountAdministration",
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": {
+                  "Fn::Sub": "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+                }
+              },
+              "Action": "kms:*",
+              "Resource": "*"
+            },
+            {
+              "Sid": "CloudWatchPublish",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudwatch.amazonaws.com"
+              },
+              "Action": [
+                "kms:Decrypt",
+                "kms:GenerateDataKey*"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                },
+                "ArnLike": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:*"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain"
+    },
+    "ApiErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Alert when backend operations fail",
+          "must": []
+        }
+      },
+      "Properties": {
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "Handler"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "Alerts"
+          }
+        ]
+      }
+    },
+    "CleanupErrors": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Alert when backend operations fail",
+          "must": []
+        }
+      },
+      "Properties": {
+        "Namespace": "AWS/Lambda",
+        "MetricName": "Errors",
+        "Dimensions": [
+          {
+            "Name": "FunctionName",
+            "Value": {
+              "Ref": "Cleanup"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "Alerts"
+          }
+        ]
+      }
+    },
+    "Budget": {
+      "Type": "AWS::Budgets::Budget",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Project spending notifications; not a hard cap",
+          "must": [
+            "Activate the Project cost-allocation tag in Billing"
+          ]
+        }
+      },
+      "Properties": {
+        "Budget": {
+          "BudgetName": {
+            "Fn::Sub": "${AWS::StackName}-monthly"
+          },
+          "BudgetType": "COST",
+          "TimeUnit": "MONTHLY",
+          "BudgetLimit": {
+            "Amount": 10,
+            "Unit": "USD"
+          },
+          "CostFilters": {
+            "TagKeyValue": [
+              {
+                "Fn::Sub": "user:Project$${AWS::StackName}"
+              }
+            ]
+          }
+        },
+        "NotificationsWithSubscribers": [
+          {
+            "Notification": {
+              "NotificationType": "ACTUAL",
+              "ComparisonOperator": "GREATER_THAN",
+              "Threshold": 5,
+              "ThresholdType": "ABSOLUTE_VALUE"
+            },
+            "Subscribers": [
+              {
+                "SubscriptionType": "EMAIL",
+                "Address": {
+                  "Ref": "AlertEmail"
+                }
+              }
+            ]
+          },
+          {
+            "Notification": {
+              "NotificationType": "ACTUAL",
+              "ComparisonOperator": "GREATER_THAN",
+              "Threshold": 10,
+              "ThresholdType": "ABSOLUTE_VALUE"
+            },
+            "Subscribers": [
+              {
+                "SubscriptionType": "EMAIL",
+                "Address": {
+                  "Ref": "AlertEmail"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "Api5xx": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Alert on handled backend failures returned as HTTP errors",
+          "must": [
+            "Do not log private request details"
+          ]
+        }
+      },
+      "Properties": {
+        "Namespace": "AWS/ApiGateway",
+        "MetricName": "5xx",
+        "Dimensions": [
+          {
+            "Name": "ApiId",
+            "Value": {
+              "Ref": "Api"
+            }
+          }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 1,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [
+          {
+            "Ref": "Alerts"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "ApiBase": {
+      "Value": {
+        "Fn::Sub": "https://${Api}.execute-api.${AWS::Region}.${AWS::URLSuffix}"
+      }
+    },
+    "AuthBase": {
+      "Value": {
+        "Fn::Sub": "https://${AuthDomainPrefix}.auth.${AWS::Region}.amazoncognito.com"
+      }
+    },
+    "ClientId": {
+      "Value": {
+        "Ref": "App"
+      }
+    },
+    "UserPoolId": {
+      "Value": {
+        "Ref": "Users"
+      }
+    },
+    "GoogleRedirectURI": {
+      "Value": {
+        "Fn::Sub": "https://${AuthDomainPrefix}.auth.${AWS::Region}.amazoncognito.com/oauth2/idpresponse"
+      }
+    },
+    "TableName": {
+      "Value": {
+        "Ref": "Data"
+      }
+    }
+  }
+}

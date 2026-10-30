@@ -4,6 +4,10 @@ async function refresh() {
   try {
     const result = await chrome.runtime.sendMessage({ type: 'siteclock:summary' });
     if (!result || result.error) throw new Error(result?.error || 'Could not load totals.');
+    document.getElementById('mode').textContent = result.cloud?.enabled ? 'ACCOUNT' : 'LOCAL';
+    document.getElementById('sync-status').textContent = result.cloud?.enabled
+      ? (result.cloud.error || (result.cloud.lastSync ? 'Across installations · Synced ' + new Date(result.cloud.lastSync).toLocaleTimeString() : 'Across installations · Waiting for sync'))
+      : 'Saved on this computer.';
     const entries = Object.entries(result.totals).sort((a, b) => b[1] - a[1]);
     sites.replaceChildren();
     if (!entries.length) {
@@ -36,3 +40,7 @@ async function refresh() {
 
 void refresh();
 setInterval(refresh, 10_000);
+
+document.getElementById('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
+
+void chrome.runtime.sendMessage({ type: 'siteclock:cloud:sync' }).catch(() => {});

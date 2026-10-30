@@ -10,3 +10,8 @@ dist/
 *.key
 *.p12
 *.pfx
+
+node_modules/
+.pnpm-store/
+.aws-sam/
+__pycache__/

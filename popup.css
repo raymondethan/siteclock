@@ -13,3 +13,5 @@ h1 { margin: 0; font-size: 20px; font-weight: 600; letter-spacing: -.5px; }
 .duration { margin-left: auto; color: #c8d1d9; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .empty { padding: 14px 0; color: #aeb8c1; }
 footer { border-top: 1px solid #30373e; margin-top: 13px; padding-top: 14px; color: #85919b; font-size: 10px; line-height: 1.8; }
+
+#settings { background: none; border: none; padding: 0; color: #91e0b5; cursor: pointer; font: inherit; text-decoration: underline; }

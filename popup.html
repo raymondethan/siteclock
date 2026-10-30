@@ -7,10 +7,10 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header><span class="mark" aria-hidden="true">◷</span><h1>SiteClock</h1><span class="local">LOCAL</span></header>
+  <header><span class="mark" aria-hidden="true">◷</span><h1>SiteClock</h1><span class="local" id="mode">LOCAL</span></header>
   <p class="intro">Your time, across every visit.</p>
   <section id="sites" aria-label="Website totals"><p class="empty">Loading your totals…</p></section>
-  <footer>Active browsing only · Pauses after 30 minutes idle<br>Saved on this computer. No account or syncing.</footer>
+  <footer>Active browsing only · Pauses after 30 minutes idle<br><span id="sync-status">Saved on this computer.</span><br><button id="settings">Accounts &amp; settings</button></footer>
   <script src="core.js"></script>
   <script src="popup.js"></script>
 </body>

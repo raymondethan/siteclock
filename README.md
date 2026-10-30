@@ -38,23 +38,25 @@ Keep this directory in place: Chrome loads the extension directly from it.
 
 ## Storage and reliability
 
-`chrome.storage.local` contains one `siteclock` record:
+`chrome.storage.local` contains a version-2 `siteclock` checkpoint: the current
+installation's contribution, active accounting boundary, random installation ID,
+account-separated local counters, acknowledgements, and downloaded contributions.
+Version-1 totals migrate locally without enabling backup or making network requests.
+A separate `siteclockAuth` record holds trusted-context authentication tokens after
+sign-in. Active tab/session information stays local.
 
-```json
-{
-  "version": 1,
-  "totals": { "example.com": 12345 },
-  "sessionId": "browser-session-identifier",
-  "active": { "tabId": 42, "hostname": "example.com" },
-  "lastAt": 1700000000000
-}
-```
+Local mode requires no account. Open **Accounts & settings** from the popup to sign
+in with Google and explicitly enable cloud backup for this installation. Enabling
+includes existing unassigned local totals. Both the popup and on-page timer then
+show the combined account total, including local time awaiting upload. Updates
+sync approximately every minute, at startup, and on popup opening. Offline changes
+retry automatically. Pause backup to stop usage communication and resume later;
+**Delete cloud history** separately removes account-wide usage and pauses old
+installations. Switching accounts keeps assigned history separate.
 
-Totals are a hostname-to-milliseconds map. The remaining fields identify the
-accounted interval. A separate `chrome.storage.session` identifier distinguishes
-worker restarts from full browser restarts. Totals survive browser/computer
-restarts and extension updates/reloads at this path. Uninstalling the extension
-removes its Chrome-managed data. Nothing is synced or sent over the network.
+A build with empty `cloud-config.js` remains local and shows that cloud backup is
+not configured. See [backend/README.md](backend/README.md) for deployment,
+configuration, schema, cost assumptions, and the two-installation release checks.
 
 Chrome events and page heartbeats enter a promise-based serial queue owned by the
 background worker. Every save stores totals together with their timestamp.
@@ -74,7 +76,15 @@ pauses its local prediction if updates stop arriving.
 
 ## Test
 
-Run `node tests/run.js` with Node 18+ (no packages needed), or on macOS run:
+Install backend test dependencies with `pnpm --dir backend install --frozen-lockfile`,
+then use Node 22+:
+
+```sh
+node tests/run.js
+node --test tests/sync.test.cjs tests/cloud-client.test.cjs backend/tests/*.test.mjs
+```
+
+The original accounting suite also runs without packages on macOS:
 
 ```sh
 swift tests/run.swift .
@@ -94,4 +104,5 @@ and confirm totals continue without counting background or overnight time.
 detects inactivity/locking; `alarms` recovers missed browser state changes. The
 HTTP/HTTPS content script permission lets the timer appear automatically on
 websites. The extension does not inspect page text, collect full URLs in storage,
-or make network requests.
+or upload page contents. Optional backup uses configured AWS endpoints; Google
+sign-in uses Chrome’s `identity` API.

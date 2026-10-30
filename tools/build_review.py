@@ -71,7 +71,7 @@ gallery = '''
 <span class="status">Approved submission materials · store submission pending</span>
 <h1>SiteClock</h1><p class="intro">A minimal website timer. Here are the package, artwork, and store copy.</p>
 <nav><a href="#artwork">Artwork</a><a href="#screenshots">Screenshots</a><a href="#copy">Listing copy</a><a href="#privacy">Privacy</a></nav>
-<div class="files"><a href="../dist/siteclock-0.1.0.zip">Release ZIP · v0.1.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
+<div class="files"><a href="../dist/siteclock-0.2.0.zip">Release ZIP · v0.2.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
 <h2 id="artwork">Icon &amp; promotional artwork</h2><div class="grid">
 <figure class="card"><img src="assets/icon-preview.png" alt="Browser-window clock icon on light and dark backgrounds"><figcaption>Browser outline + clock hands. Slate and mint. PNG sizes: 16, 32, 48, and 128 pixels. <a href="../icons/siteclock.svg">Editable SVG</a>.</figcaption></figure>
 <figure class="card"><a href="assets/promo-small-440x280.png"><img src="assets/promo-small-440x280.png" alt="SiteClock — Time spent on each website."></a><figcaption>Required small promotional tile · 440 × 280.</figcaption></figure>

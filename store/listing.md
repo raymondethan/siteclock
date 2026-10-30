@@ -6,7 +6,7 @@ SiteClock
 
 ## Short description
 
-See your total time on each website in a small on-page timer. All data stays on your computer.
+See your total time on each website in a small on-page timer. Optional cloud backup keeps your totals across computers.
 
 ## Detailed description
 
@@ -20,7 +20,9 @@ website totals, sorted by time spent.
 - Pauses when Chrome loses focus, your computer locks, or you have been inactive
   for 30 minutes.
 - Keeps totals across browser and computer restarts, with no daily reset.
-- Stores data on this computer. No account, syncing, ads, or analytics.
+- Works locally without an account. Optional Google sign-in and cloud backup
+  combine your totals across computers. Backup is off by default per installation.
+- Pause backup anytime, or separately delete cloud history. No ads or analytics.
 - Groups pages by hostname, ignoring a leading www. Other subdomains are separate.
 
 The first 30 minutes without input are counted before the inactivity pause.
@@ -28,7 +30,9 @@ Incognito browsing is not tracked. Chrome's internal pages and other protected
 pages cannot show the timer. Sleep, delayed timers, and sudden shutdowns can
 cause small amounts of time to go uncounted.
 
-Removing SiteClock from Chrome deletes its saved totals.
+Removing SiteClock from Chrome deletes its local data. Previously uploaded cloud
+totals can be restored by signing in and enabling backup again. Cloud deletion is
+a separate action in SiteClock settings.
 
 ## Listing fields
 
@@ -59,3 +63,10 @@ website, and return: the first site's timer continues from its existing total.
 Open the SiteClock toolbar popup to see both totals. Switch to another app to
 pause counting. Restart Chrome and revisit the website to confirm its saved
 total remains. No login or test account is needed.
+
+## Cloud release verification
+
+The release must be configured against the production AWS stack and published
+extension ID before upload. Test Google sign-in and opt-in backup with two Chrome
+profiles as described in `../backend/README.md`. The unconfigured source build is
+local-only; do not advertise working cloud backup for that build.

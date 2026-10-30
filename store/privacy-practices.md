@@ -15,7 +15,7 @@ timer and a toolbar list of website totals.
 
 Save hostname-to-duration totals and accounting checkpoints on this computer so
 totals persist across visits and browser restarts. Session storage distinguishes
-worker restarts from browser restarts. No data is synchronized or transmitted.
+worker restarts from browser restarts. When explicitly enabled, sync cumulative hostname contributions and cache account-wide totals; store authentication tokens in trusted extension storage.
 
 ### tabs
 
@@ -47,8 +47,7 @@ runs in subframes; incognito tracking is disabled.
 ## Remote code
 
 No, this extension does not use remote code. All JavaScript, styles, and icons are
-included in the package. There are no runtime network requests, external script
-libraries, or dynamically downloaded executable code.
+included in the package. Configured AWS endpoints provide authentication and optional data backup. Google handles sign-in. No executable code is fetched remotely.
 
 ## Data-type disclosures
 
@@ -56,20 +55,20 @@ Disclose local processing as well as transmission; do not claim that the
 extension handles no user data just because it has no server.
 
 - **Web history / web browsing activity:** Yes. The extension processes tab URLs
-  to identify hostnames and retains hostname totals locally. It does not retain
+  to identify hostnames and retains hostname totals locally and uploads them to AWS only when backup is enabled. It does not retain
   visited URL paths, query strings, or page titles.
 - **User activity:** Yes. The extension measures active browsing duration and
   uses window focus and Chrome's active/idle/locked state. It does not log
   individual clicks, mouse movements, or keystrokes.
-- Other listed categories: not handled by the current functionality. The
-  extension does not intentionally access website content, messages, payment
-  details, authentication data, health data, or precise location.
+- **Personally identifiable information:** Yes, basic Google account identity and email for optional account sign-in.
+- **Authentication information:** Yes, SiteClock access and refresh tokens. The extension never receives the Google password.
+- Website content, messages, payment details, health data, and precise location are not intentionally accessed.
 
 ## Limited Use certifications
 
 The current implementation supports the following statements:
 
-- Data is not sold or transferred to third parties.
+- Data is not sold. Google and AWS process data only for the requested sign-in and backup services.
 - Data is used only for the stated website-timing purpose.
 - Data is not used to assess creditworthiness or for lending.
 - Browsing data is not used for advertising or unrelated profiling.
@@ -86,3 +85,15 @@ The same policy is available as a standalone HTML source in
 - https://developer.chrome.com/docs/webstore/program-policies/user-data-faq
 - https://developer.chrome.com/docs/webstore/images
 - https://developer.chrome.com/docs/webstore/prepare
+
+### identity
+
+Open a user-initiated Google sign-in flow through Cognito and return securely to the extension. The extension uses authorization code + PKCE and does not request Google browsing-history access.
+
+### Configured host permissions
+
+Access only the configured AWS API and Cognito origins from the background worker for sign-in, token refresh/revocation, and optional hostname-duration backup. The release configuration tool writes exact origins; no wildcard cloud hosts are needed.
+
+## Release controls
+
+Backup defaults to off on each installation. Enabling includes existing unassigned totals with an explicit confirmation. Pausing stops usage uploads/downloads and preserves the cloud copy; deletion removes cloud history and prevents stale installations from re-uploading it automatically. Account identity remains after usage deletion. See the policy for retention and account identity deletion requests.

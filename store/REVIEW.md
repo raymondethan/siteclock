@@ -67,3 +67,10 @@ account and dashboard fields before submitting. Review is still required by Goog
 files do not imply approval. Switching from an unpacked extension to the store
 installation may require migrating existing local totals; that feature is not
 included in this packaging work.
+
+## Version 0.2 cloud release
+
+Accounts and optional backup are implemented, but release packaging must use the
+production stack outputs and store extension ID. Complete the two-profile checks
+in `../backend/README.md`. Existing promotional screenshots show the earlier local
+interface and should be refreshed before publishing this release.

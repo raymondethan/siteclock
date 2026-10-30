@@ -1,0 +1,9 @@
+{
+  "name": "siteclock-backend",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": { "test": "node --test tests/*.test.mjs" },
+  "dependencies": { "@aws-sdk/client-dynamodb": "^3.968.0", "@aws-sdk/lib-dynamodb": "^3.968.0" }
+}

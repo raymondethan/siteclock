@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SiteClock settings</title><link rel="stylesheet" href="options.css"></head>
+<body><main>
+<header><h1>SiteClock</h1><p>Accounts and cloud backup</p></header>
+<section aria-labelledby="backup-heading">
+<h2 id="backup-heading">Keep your time across computers</h2>
+<p>Sign in with the same Google account on each computer to back up your website totals and see your combined time.</p>
+<p id="account">Checking account…</p>
+<button id="signin">Continue with Google</button><button id="signout" hidden>Sign out</button>
+<div class="control"><label><input id="backup" type="checkbox" disabled> Cloud backup</label></div>
+<p class="muted">Off by default for each installation. Enabling uploads this installation’s existing, unassigned website totals. While paused, new usage stays local and catches up when re-enabled. Previously assigned account history stays separate.</p>
+<p class="muted">Only hostnames and cumulative durations are backed up. Active tabs, page contents, and full URLs stay off the server. The extension never receives your Google password.</p>
+<p id="status" role="status" aria-live="polite"></p>
+<button id="retry" hidden>Sync now</button>
+</section>
+<section aria-labelledby="delete-heading"><h2 id="delete-heading">Delete cloud history</h2>
+<p>This deletes usage across all installations and pauses backup. Your account remains. Existing local contributions are kept locally and will not automatically upload again. Other installations pause when they next connect.</p>
+<p class="muted">Deleted data may remain in disaster-recovery backups for up to seven days. Recovery procedures must preserve your deletion.</p>
+<button id="delete" class="danger" disabled>Delete cloud history…</button>
+</section>
+<footer>Active browsing only. Local tracking continues without an account or a connection.</footer>
+</main><script src="options.js"></script></body></html>

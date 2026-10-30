@@ -1,73 +1,49 @@
 # SiteClock Privacy Policy
 
-Last updated: October 17, 2026
+Last updated: October 29, 2026
 
-SiteClock shows your cumulative active browsing time for each website. Your
-website totals stay in your Chrome profile on this computer. SiteClock has no
-account system, analytics service, or server receiving your browsing data.
+SiteClock measures cumulative active browsing time per website. It works locally without an account. Optional cloud backup lets you restore saved totals and see combined usage across computers. Cloud backup is off by default for each installation.
 
 ## Information used
 
-SiteClock uses the current tab's URL to determine its hostname, such as
-`example.com`. It uses tab and window state and Chrome's active, idle, and locked
-signals to decide when to count time. It does not record your keystrokes, mouse
-movements, or clicks.
+SiteClock uses the selected tab's URL to determine its hostname, such as `example.com`, and uses tab/window focus and Chrome's active, idle, and locked signals to decide when to count time. It does not record individual keystrokes, clicks, or mouse movements. Incognito browsing is not tracked.
 
-Chrome may provide tab metadata, including full URLs and titles, while the
-extension is running. SiteClock uses this information only in memory to identify
-the active website. It does not persist URL paths, query strings, page titles, or
-the contents of web pages, forms, passwords, or cookies.
+Chrome may provide full URLs, titles, and other tab metadata in memory. SiteClock does not persist or upload URL paths, query strings, page titles, page contents, forms, passwords, or cookies. A leading `www.` is removed; other subdomains remain separate.
 
-SiteClock stores the following locally:
+## Local storage
 
-- Each website's hostname and cumulative active time in milliseconds.
-- The last accounting timestamp, active hostname, and tab identifier needed to
-  avoid counting an interval twice.
-- A random browser-session identifier used to distinguish a background-worker
-  restart from a full browser restart. It is not sent anywhere or used to
-  identify you across devices.
+Chrome extension-local storage holds hostname totals, accounting checkpoints, a random installation identifier, account-separated contributions and cached cloud totals, and backup preferences. Temporary browser-session state distinguishes worker restarts from browser restarts. The installation identifier is random, is not a hardware identifier, and is replaced when extension-local data is erased.
 
-## How information is used
+After sign-in, the extension also stores SiteClock authentication tokens locally to maintain your session. These tokens are restricted to trusted extension contexts; they are not exposed to website content scripts. People or software with access to your Chrome profile may be able to access local data. SiteClock does not add its own local encryption layer.
 
-This information is used only to calculate, save, and display your website
-timers and totals. A leading `www.` is removed from hostnames; other subdomains
-have separate totals. Incognito browsing is not tracked.
+## Accounts and optional cloud backup
 
-## Storage, retention, and access
+You can choose Continue with Google to create or access your SiteClock account. Google handles your Google credentials; SiteClock never receives your Google password. Google and Amazon Cognito process the identity information needed for authentication, including your account identifier and email. SiteClock requests basic identity access, not access to Google browsing history.
 
-Website totals are saved using Chrome's extension-local storage. They have no
-automatic expiration and remain across browser and computer restarts. Temporary
-browser-session state is cleared when Chrome ends or reloads the extension.
+Signing in alone does not enable usage backup. When you enable backup, SiteClock uploads existing unassigned hostname totals from this installation and subsequent cumulative usage. Previously assigned history stays separate between accounts. Your account stores each installation's hostname totals and registration/sync timestamps, allowing contributions to be combined without duplicate counting.
 
-You can view your saved website totals by opening the SiteClock toolbar popup.
-People and software with access to your Chrome profile or computer may also be
-able to access this local data. SiteClock does not add its own encryption layer.
+Backup uses Amazon Web Services: Cognito for authentication, API Gateway and Lambda for authenticated requests, and DynamoDB for stored usage. The default deployment region is US East (Northern Virginia). Hosting providers necessarily process connection and authentication metadata needed to operate the service. Application logs exclude hostnames, usage payloads, tokens, and full URLs; configured operational logs expire after 14 days.
 
-## Sharing and transmission
+While backup is enabled, the extension normally uploads changes and refreshes totals about once a minute while Chrome runs, and at startup or when you open the popup. Timing is best-effort. Offline tracking continues locally; unsent changes upload when connectivity returns. A sudden failure or deletion of local storage before upload can lose recent unbacked-up time.
 
-SiteClock does not send browsing data or website totals to its developer or to
-third parties. It does not sell data, use it for advertising, synchronize it
-between devices, or include third-party analytics. Its runtime makes no network
-requests.
+## Your controls and retention
 
-SiteClock follows the Chrome Web Store User Data Policy, including its Limited
-Use requirements. Browsing information is used solely to provide the website
-timer and totals, and is not used for advertising or unrelated purposes.
+- With backup off, usage stays local. Signing in still communicates with Google and the account service for authentication.
+- Pause cloud backup to stop usage uploads and downloads on this installation. Local tracking continues, and accumulated changes are included when you re-enable it. Existing cloud history is retained.
+- Sign out to clear local credentials and the displayed cloud cache. This does not delete cloud history. Other installations continue according to their settings.
+- Delete cloud history in SiteClock settings to delete usage across the account and pause backup. This keeps your sign-in account. Other installations detect the deletion when they next connect, pause, and cannot automatically restore the deleted contribution. Existing local contributions remain local; re-enabling starts a fresh cloud contribution.
+- Deletion immediately makes the retired cloud history unavailable through the API. Physical record cleanup runs in retryable batches. Disaster-recovery copies can retain deleted information for up to seven days; recovery procedures preserve deletion decisions.
+- Removing SiteClock or clearing its storage erases that installation's local data and identifier. Cloud data remains until you delete it through settings. Sign in and enable backup on another installation to restore previously uploaded totals.
+- Disabling the extension stops tracking and keeps its local data. Hostname totals have no automatic expiration while retained locally or in an enabled cloud account.
 
-## Your controls and deletion
+Account identity remains after deleting cloud usage. To request deletion of the remaining SiteClock account identity, contact the developer using the support link below without posting private information. The settings deletion action is labeled Delete cloud history and does not claim to delete your Google or SiteClock sign-in identity.
 
-Disable SiteClock in Chrome's extension settings to stop tracking. Disabling it
-keeps existing totals. Removing SiteClock from Chrome deletes its extension-local
-data, including all saved totals. SiteClock cannot recover deleted totals.
+## Use and sharing
 
-## Policy changes
+Information is used only to provide website timing, account authentication, backup, restoration, and synchronization. SiteClock does not sell data, use it for advertising, assess creditworthiness, or include third-party analytics. Google and AWS process information as required to provide the requested authentication and hosting services. Browsing information is not used for unrelated profiling.
 
-If SiteClock's handling of data changes, this policy and its last-updated date
-will be updated with the corresponding release.
+SiteClock follows the Chrome Web Store User Data Policy, including its Limited Use requirements. All executable extension code is included in the package; remote services provide authentication and data, not downloaded executable code.
 
-## Contact
+## Policy changes and contact
 
-For questions about this policy, open an issue in the
-[SiteClock project](https://github.com/raymondethan/siteclock/issues).
-Issues are public; please do not include your browsing history or other private
-information in a report.
+Material changes to data handling will be reflected in this policy and its date. For support or account-deletion requests, use the [SiteClock project support page](https://github.com/raymondethan/siteclock/issues). Issues are public; do not include browsing history, credentials, or other private information. Ask for a private contact method when needed.
