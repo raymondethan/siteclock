@@ -75,9 +75,8 @@ The current implementation supports the following statements:
 
 ## Privacy policy URL
 
-Use https://github.com/raymondethan/siteclock/blob/master/PRIVACY.md.
-The same policy is available as a standalone HTML source in
-`store/privacy-policy.html` if a dedicated hosted page is wanted later.
+Use https://siteclock.dev/privacy.html. The same policy is maintained in
+`PRIVACY.md` and `store/privacy-policy.html`.
 
 ## References checked
 

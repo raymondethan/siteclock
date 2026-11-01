@@ -2,6 +2,10 @@
 globalThis.SiteClockCloud = (() => {
   const config = SiteClockCloudConfig;
   const configured = Boolean(config.apiBase && config.authBase && config.clientId && config.userPoolId);
+  const environment = configured
+    ? (/^https:\/\/siteclock-prod-/.test(config.authBase) ? 'production'
+      : /^https:\/\/siteclock-dev-/.test(config.authBase) ? 'development' : 'unknown')
+    : 'local-only';
   const b64url = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   let refreshing;
   class CloudError extends Error {
@@ -93,5 +97,5 @@ globalThis.SiteClockCloud = (() => {
       } catch { /* Local sign-out succeeds even without a connection. */ }
     }
   }
-  return { configured, api, signIn, signOut };
+  return { configured, environment, api, signIn, signOut };
 })();

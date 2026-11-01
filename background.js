@@ -216,7 +216,7 @@ queue.push(() => initialize(Date.now())).then(() => syncCloud(true)).catch(repor
 
 function cloudStatus() {
   const account = tracker.ledger.account;
-  return { configured: SiteClockCloud.configured, signedIn: Boolean(account), email: account?.email,
+  return { configured: SiteClockCloud.configured, environment: SiteClockCloud.environment, signedIn: Boolean(account), email: account?.email,
     enabled: Boolean(account?.enabled), privacyMode: account?.privacyMode || null, lastSync: account?.lastSync, error: account?.error,
     syncing: Boolean(syncing), localOnly: Boolean(account && Object.keys(account.localOnly).length) };
 }

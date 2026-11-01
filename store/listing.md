@@ -42,9 +42,9 @@ a separate action in SiteClock settings.
 
 - Category: Productivity (choose the corresponding category in the dashboard).
 - Language: English.
-- Homepage: https://github.com/raymondethan/siteclock
-- Support: https://github.com/raymondethan/siteclock/issues
-- Privacy policy: https://github.com/raymondethan/siteclock/blob/master/PRIVACY.md
+- Homepage: https://siteclock.dev
+- Support: https://siteclock.dev/support.html
+- Privacy policy: https://siteclock.dev/privacy.html
 - Price: Free.
 
 ## Store images

@@ -1,4 +1,4 @@
-"""Verify privacy modes on a deployed development Lambda and DynamoDB.
+"""Verify privacy modes on a deployed SiteClock Lambda and DynamoDB.
 
 Only random synthetic account partitions are created/read/deleted. Crypto keys
 stay in memory or the private temporary directory and are never printed.
@@ -11,17 +11,22 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+import deploy_cloud
 from deploy_cloud import Deployment, WORK, ROOT, write_json
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--environment', choices=['dev', 'prod'], default='dev')
     parser.add_argument('--node', default=shutil.which('node'))
     args = parser.parse_args()
     if not args.node:
         parser.error('Node.js 22+ must be on PATH, or supply --node.')
-    deployment = Deployment()
-    outputs = {v['OutputKey']: v['OutputValue'] for v in json.loads((WORK / 'outputs.json').read_text())}
+    if args.environment == 'prod':
+        deploy_cloud.WORK = WORK / 'production'
+    deployment = Deployment(args.environment)
+    work = WORK / 'production' if args.environment == 'prod' else WORK
+    outputs = {v['OutputKey']: v['OutputValue'] for v in json.loads((work / 'outputs.json').read_text())}
     table = outputs['TableName']
     checks = []
     owned = {}
@@ -36,7 +41,7 @@ def main():
                 event['body'] = json.dumps(body)
             request, response = directory / 'request.json', directory / 'response.json'
             write_json(request, event, private=True)
-            result = deployment.aws('lambda', 'invoke', '--function-name', 'siteclock-dev-api',
+            result = deployment.aws('lambda', 'invoke', '--function-name', f'siteclock-{args.environment}-api',
                 '--payload', f'fileb://{request}', response)
             assert not result.get('FunctionError'), 'Lambda execution failed'
             result = json.loads(response.read_text())
@@ -119,8 +124,8 @@ def main():
                 deployment.aws('dynamodb', 'delete-item', '--table-name', table,
                     '--key', json.dumps({'pk': {'S': f'ACCOUNT#{account}'}, 'sk': {'S': 'PROFILE'}}))
     report = {'passed': len(checks), 'checks': checks, 'syntheticDataRemoved': True,
-        'scope': 'Development Lambda/DynamoDB; Google sign-in and API Gateway tested separately'}
-    write_json(WORK / 'privacy-smoke-result.json', report)
+        'scope': f'{args.environment.title()} Lambda/DynamoDB; Google sign-in and API Gateway tested separately'}
+    write_json(work / 'privacy-smoke-result.json', report)
     print(json.dumps(report, indent=2))
 
 

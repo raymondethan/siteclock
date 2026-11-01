@@ -16,7 +16,7 @@ complete; see `SUBMISSION.md` for current status and the remaining steps.
 - `privacy-practices.md`: permission explanations and data-handling disclosures.
 - `../PRIVACY.md` and `privacy-policy.html`: the same policy in source and
   standalone HTML forms.
-- `../dist/siteclock-0.1.0.zip`: production-only upload package.
+- `../dist/siteclock-0.4.0-production.zip`: production-configured upload package.
 
 ## Design
 
@@ -25,9 +25,8 @@ lettering inside the icon, or decorative detail. The 128-pixel PNG has transpare
 padding around a 96-pixel mark. Smaller icons use the same geometry. The SVG
 source and deterministic PNG renderer are included in the repository.
 
-Promotional copy describes only the shipped functionality. The public policy
-uses the repository's issue tracker as its contact route, with a reminder that
-issues are public.
+Promotional copy describes the 0.4.0 release. The public policy and support
+page use the SiteClock domain and private support alias.
 
 ## Screenshots
 
@@ -43,9 +42,10 @@ and CSS, and four PNG icons. It excludes tests, development tools, `.git`, store
 copy, screenshots, keys, credentials, and personal runtime data. The SVG source
 is kept for editing; Chrome uses the PNG files.
 
-The version remains `0.1.0` for this first store package. No tracking behavior or
-saved totals have been changed. The source manifest adds the icon and uses the
-same short description as the store copy.
+The current published listing is version `0.1.0`; the 0.4.0 production package
+is prepared as an update to that same item. It contains encrypted-hostname
+backup options, with recovery-code encryption selected by default and backup
+remaining opt-in.
 
 Rebuild locally:
 
@@ -68,9 +68,10 @@ files do not imply approval. Switching from an unpacked extension to the store
 installation may require migrating existing local totals; that feature is not
 included in this packaging work.
 
-## Version 0.2 cloud release
+## Version 0.4 cloud release
 
-Accounts and optional backup are implemented, but release packaging must use the
-production stack outputs and store extension ID. Complete the two-profile checks
-in `../backend/README.md`. Existing promotional screenshots show the earlier local
-interface and should be refreshed before publishing this release.
+Accounts, optional cloud backup, and three hostname privacy modes are implemented.
+The production package is configured for the production stack and existing store
+extension ID. Complete the fresh-profile checks in `SUBMISSION.md`. Existing
+promotional screenshots show the earlier local interface and must be refreshed
+before publishing this release.
