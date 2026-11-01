@@ -227,7 +227,7 @@ class Deployment:
         if existing is not None:
             if existing.get('DeletedDate'):
                 raise RuntimeError('OAuth secret is scheduled for deletion; inspect before restoring.')
-            print('Using the existing SiteClock development OAuth secret.', flush=True)
+            print(f'Using the existing SiteClock {self.environment} OAuth secret.', flush=True)
             return existing['ARN']
         if 'ResourceNotFoundException' not in error:
             raise RuntimeError(error)
@@ -237,7 +237,7 @@ class Deployment:
         path = WORK / 'secret-value.json'
         write_json(path, {'client_secret': oauth['client_secret']}, private=True)
         response = self.aws('secretsmanager', 'create-secret', '--name', name,
-                            '--description', 'SiteClock development Google OAuth client secret for Cognito only',
+                            '--description', f'SiteClock {self.environment} Google OAuth client secret for Cognito only',
                             '--secret-string', f'file://{path}', '--tags', json.dumps([{'Key': 'Project', 'Value': self.stack}]))
         print('Stored Google OAuth secret in AWS Secrets Manager; value not printed.', flush=True)
         return response['ARN']
