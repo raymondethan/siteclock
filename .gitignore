@@ -10,6 +10,7 @@ dist/
 *.key
 *.p12
 *.pfx
+issues.txt
 
 node_modules/
 .pnpm-store/

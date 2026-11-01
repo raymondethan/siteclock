@@ -8,7 +8,9 @@ The code review corrected wrong-recovery-code uploads, migration lifetime accoun
 
 Existing published item: `bmbcnjfikfnchmpcpoheggcbppgkeojm`, publisher Rhea, currently version 0.1.0. Update this item instead of creating another. Public support alias: `rhea_development.unnatural809@slmails.com`, supported by the Chrome Web Store contact verification email dated October 18, 2026. The development OAuth project separately uses its owner's Gmail support contact. Production is not deployed and no store update has been submitted.
 
-Still required: choose the public website/domain, configure separate production Google OAuth and AWS resources for the existing store ID, verify public sign-in and the recovery/device/plaintext flows in the actual Chrome package, test two real accounts and installations, verify alert delivery and production restore procedures, replace promotional screenshots, update dashboard disclosures, and submit for review. Local static website assets and packaging helpers are prepared; the store-draft ZIP has no cloud endpoints and must not be submitted as the cloud-enabled release.
+The domain siteclock.dev is registered with Cloudflare. The public homepage, privacy, support and beta terms pages are deployed using the siteclock static-assets Worker; DNS and HTTPS are configured. Website copy labels cloud backup as forthcoming until the updated store package ships.
+
+Still required: configure separate production Google OAuth and AWS resources for the existing store ID, verify public sign-in and the recovery/device/plaintext flows in the actual Chrome package, test two real accounts and installations, verify alert delivery and production restore procedures, replace promotional screenshots, update dashboard disclosures, and submit for review. Local static website assets and packaging helpers are prepared; the store-draft ZIP has no cloud endpoints and must not be submitted as the cloud-enabled release.
 
 ## Previous verified status (November 1, 2026)
 
