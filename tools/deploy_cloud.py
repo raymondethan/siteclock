@@ -90,6 +90,7 @@ class Deployment:
             if domain['UserPoolId'] != resource.get('StackResourceDetail', {}).get('PhysicalResourceId'):
                 raise RuntimeError('The selected Cognito domain is already owned by another user pool.')
         values = {'Environment': self.environment, 'ExtensionId': self.settings['extensionId'],
+                  'UnpackedExtensionId': self.settings.get('unpackedExtensionId', 'NONE'),
                   'GoogleClientId': self.settings['googleClientId'], 'AuthDomainPrefix': self.domain,
                   'AlertEmail': self.settings['alertEmail']}
         template = json.loads((ROOT / 'backend/template.json').read_text())
@@ -263,6 +264,7 @@ class Deployment:
         path = WORK / 'application-template.json'
         write_json(path, template)
         values = {'Environment': self.environment, 'ExtensionId': self.settings['extensionId'],
+                  'UnpackedExtensionId': self.settings.get('unpackedExtensionId', 'NONE'),
                   'GoogleClientId': self.settings['googleClientId'], 'GoogleSecretArn': secret,
                   'AuthDomainPrefix': self.domain, 'AlertEmail': self.settings['alertEmail']}
         self.apply(self.stack, path, [{'ParameterKey': k, 'ParameterValue': v} for k, v in values.items()],

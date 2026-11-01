@@ -105,6 +105,16 @@ class DeploymentChecks(unittest.TestCase):
         cors = template['Resources']['Api']['Properties'].get('CorsConfiguration', {})
         self.assertFalse(any('chrome-extension://' in json.dumps(origin) for origin in cors.get('AllowOrigins', [])))
 
+    def test_unpacked_extension_callback_is_optional_and_production_only(self):
+        template = json.loads((ROOT / 'backend/template.json').read_text())
+        self.assertEqual(template['Parameters']['UnpackedExtensionId']['Default'], 'NONE')
+        self.assertEqual(template['Conditions']['HasUnpackedExtensionId']['Fn::And'][0], {'Condition': 'Production'})
+        app = template['Resources']['App']['Properties']
+        self.assertEqual(app['CallbackURLs'][0]['Fn::Sub'], 'https://${ExtensionId}.chromiumapp.org/oauth2')
+        self.assertEqual(app['CallbackURLs'][1]['Fn::If'][0], 'HasUnpackedExtensionId')
+        self.assertEqual(app['LogoutURLs'][0]['Fn::Sub'], 'https://${ExtensionId}.chromiumapp.org/')
+        self.assertEqual(app['LogoutURLs'][1]['Fn::If'][0], 'HasUnpackedExtensionId')
+
 
 if __name__ == '__main__':
     unittest.main()

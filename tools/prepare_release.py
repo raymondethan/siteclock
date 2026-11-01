@@ -53,7 +53,7 @@ def main():
     output.with_suffix('.zip.sha256').write_text(f'{hashlib.sha256(output.read_bytes()).hexdigest()}  {output.name}\n')
     with zipfile.ZipFile(output) as package:
         assert set(package.namelist()) == set(FILES + sorted(set(manifest['icons'].values()) | set(manifest['action']['default_icon'].values())))
-    print(f'Prepared {output.relative_to(ROOT)}. Source development configuration was not changed.')
+    print(f'Prepared {output.relative_to(ROOT)}. Repository cloud configuration was left unchanged.')
 
 
 if __name__ == '__main__':

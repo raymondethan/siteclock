@@ -46,10 +46,10 @@
     "open_in_tab": true
   },
   "host_permissions": [
-    "https://aer3rw6m6b.execute-api.us-east-2.amazonaws.com/*",
-    "https://siteclock-dev-513323.auth.us-east-2.amazoncognito.com/*"
+    "https://6d5c5o3m30.execute-api.us-east-2.amazonaws.com/*",
+    "https://siteclock-prod-513420.auth.us-east-2.amazoncognito.com/*"
   ],
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://aer3rw6m6b.execute-api.us-east-2.amazonaws.com https://siteclock-dev-513323.auth.us-east-2.amazoncognito.com;"
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://6d5c5o3m30.execute-api.us-east-2.amazonaws.com https://siteclock-prod-513420.auth.us-east-2.amazoncognito.com;"
   }
 }

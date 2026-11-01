@@ -1,7 +1,7 @@
 /* Public deployment configuration. No secrets. */
 globalThis.SiteClockCloudConfig = Object.freeze({
-  "apiBase": "https://aer3rw6m6b.execute-api.us-east-2.amazonaws.com",
-  "authBase": "https://siteclock-dev-513323.auth.us-east-2.amazoncognito.com",
-  "clientId": "5lb2cr40035fpmgn8dgf2p06nl",
-  "userPoolId": "us-east-2_Rhxvnn5SN"
+  "apiBase": "https://6d5c5o3m30.execute-api.us-east-2.amazonaws.com",
+  "authBase": "https://siteclock-prod-513420.auth.us-east-2.amazoncognito.com",
+  "clientId": "3i2qso7s214e5lkc2br46t63nh",
+  "userPoolId": "us-east-2_Ma6eVT64W"
 });

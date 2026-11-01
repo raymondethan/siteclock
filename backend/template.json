@@ -20,6 +20,12 @@
       "Type": "String",
       "AllowedPattern": "[a-p]{32}"
     },
+    "UnpackedExtensionId": {
+      "Type": "String",
+      "Default": "NONE",
+      "AllowedPattern": "NONE|[a-p]{32}",
+      "Description": "Optional local unpacked extension ID allowed to use production sign-in during owner verification."
+    },
     "GoogleClientId": {
       "Type": "String",
       "AllowedPattern": "[A-Za-z0-9._-]+\\.apps\\.googleusercontent\\.com"
@@ -58,6 +64,25 @@
           "Ref": "Environment"
         },
         "prod"
+      ]
+    },
+    "HasUnpackedExtensionId": {
+      "Fn::And": [
+        {
+          "Condition": "Production"
+        },
+        {
+          "Fn::Not": [
+            {
+              "Fn::Equals": [
+                {
+                  "Ref": "UnpackedExtensionId"
+                },
+                "NONE"
+              ]
+            }
+          ]
+        }
       ]
     }
   },
@@ -207,7 +232,7 @@
       "Type": "AWS::Cognito::UserPoolClient",
       "Metadata": {
         "com.aws.cloudformation.Context": {
-          "why": "Public PKCE client for one stable extension ID",
+          "why": "Public PKCE client for the published extension and an explicitly allowed unpacked owner-verification build",
           "must": [
             "No client secret; tokens restricted to this client"
           ]
@@ -235,11 +260,33 @@
         "CallbackURLs": [
           {
             "Fn::Sub": "https://${ExtensionId}.chromiumapp.org/oauth2"
+          },
+          {
+            "Fn::If": [
+              "HasUnpackedExtensionId",
+              {
+                "Fn::Sub": "https://${UnpackedExtensionId}.chromiumapp.org/oauth2"
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
           }
         ],
         "LogoutURLs": [
           {
             "Fn::Sub": "https://${ExtensionId}.chromiumapp.org/"
+          },
+          {
+            "Fn::If": [
+              "HasUnpackedExtensionId",
+              {
+                "Fn::Sub": "https://${UnpackedExtensionId}.chromiumapp.org/"
+              },
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
           }
         ],
         "EnableTokenRevocation": true,
