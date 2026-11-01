@@ -1,4 +1,4 @@
-const elements = Object.fromEntries(['account', 'signin', 'signout', 'backup', 'status', 'retry', 'delete'].map(id => [id, document.getElementById(id)]));
+const elements = Object.fromEntries(['account', 'signin', 'signout', 'backup', 'status', 'retry', 'delete', 'privacyMode', 'backupIntro'].map(id => [id, document.getElementById(id)]));
 let busy = false;
 function render(state) {
   elements.account.textContent = state.signedIn ? `Signed in as ${state.email || 'your Google account'}` : 'Not signed in. Your time is saved on this computer.';
@@ -14,10 +14,15 @@ function render(state) {
   elements.signout.disabled = busy;
   elements.status.textContent = !state.configured ? 'Cloud backup is not configured in this build.' :
     state.error || (state.syncing ? 'Syncing…' : state.enabled ? `Backup on. ${state.lastSync ? `Last synced ${new Date(state.lastSync).toLocaleString()}.` : 'Waiting for first sync.'}` : 'Backup off. Local tracking continues.');
+  elements.privacyMode.textContent = !state.privacyMode ? 'Hostname privacy: choose a setting during backup setup.' :
+    `Hostname privacy: ${state.privacyMode === 'recovery' ? 'encrypted with a recovery code' : state.privacyMode === 'device' ? 'encrypted for this Chrome profile' : 'unencrypted'}. Changing modes requires a local snapshot and confirmed cloud-history migration.`;
+  elements.backupIntro.textContent = state.privacyMode === 'device'
+    ? 'Device-only encryption keeps website names on this Chrome profile. Site names and matching totals from other computers cannot be combined.'
+    : 'Sign in with the same Google account on each computer to back up your website totals. Recovery-code and unencrypted modes combine site totals.';
 }
 async function status() {
   const result = await chrome.runtime.sendMessage({ type: 'siteclock:cloud:status' });
-  if (result.error) throw Error(result.error);
+  if (!result || result.error) throw Error(result?.error || 'SiteClock is reconnecting. Reload this settings page.');
   render(result);
 }
 async function act(action) {
@@ -27,7 +32,7 @@ async function act(action) {
   elements.status.textContent = action === 'signin' ? 'Complete Google sign-in in the window that opens…' : 'Working…';
   try {
     const result = await chrome.runtime.sendMessage({ type: `siteclock:cloud:${action}` });
-    if (result.error) throw Error(result.error);
+    if (!result || result.error) throw Error(result?.error || 'SiteClock is reconnecting. Reload this settings page.');
     busy = false; render(result);
   } catch (error) {
     busy = false;

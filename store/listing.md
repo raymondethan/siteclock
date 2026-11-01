@@ -22,7 +22,10 @@ website totals, sorted by time spent.
 - Shows Today, Last 7 days, and Total; lifetime totals persist across restarts.
 - Uses local calendar dates. Earlier history appears in Total; daily history starts at upgrade.
 - Works locally without an account. Optional Google sign-in and cloud backup
-  combine your totals across computers. Backup is off by default per installation.
+  can combine your totals across computers. Backup is off by default per installation.
+- Choose encrypted backup with a recovery code, encryption limited to this Chrome
+  profile, or unencrypted backup. The recovery code is required to unlock names
+  on another computer. Dates and durations remain visible to the cloud service.
 - Pause backup anytime, or separately delete cloud history. No ads or analytics.
 - Groups pages by hostname, ignoring a leading www. Other subdomains are separate.
 

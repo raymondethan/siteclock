@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-for (const file of ['sync-core.js', 'core.js']) vm.runInThisContext(fs.readFileSync(path.join(root, file), 'utf8'));
+for (const file of ['sync-core.js', 'core.js', 'hostname-crypto.js']) vm.runInThisContext(fs.readFileSync(path.join(root, file), 'utf8'));
 const { Ledger } = SiteClockSync;
 const a = 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';
 const b = 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
@@ -78,21 +78,22 @@ const harness = fs.readFileSync(path.join(__dirname, 'suite.js'), 'utf8').split(
 const environment = new Function('SiteClockCore', 'SiteClockSync', 'backgroundSource', harness + '\nreturn environment;')(
   SiteClockCore, SiteClockSync, fs.readFileSync(path.join(root, 'background.js'), 'utf8'));
 function fakeCloud() {
-  return { configured: true, calls: [], generation: g, pages: [{ contributions: [], cursor: null }],
-    async signIn() { return { accountId: a, email: 'a@example.test', generation: this.generation }; },
+  return { configured: true, calls: [], generation: g, privacyMode: 'unencrypted', pages: [{ contributions: [], cursor: null }],
+    async signIn() { return { accountId: a, email: 'a@example.test', generation: this.generation, privacyMode: this.privacyMode, keyId: this.keyId, legacyData: this.legacyData, migrationId: this.migrationId, migrationInstallationId: this.migrationInstallationId }; },
     async signOut() {},
     async api(url, method = 'GET', body, expectedAccount) {
       this.calls.push({ url, method, body, expectedAccount });
       if (this.intercept) await this.intercept(url, method, body);
-      if (url === '/v1/account') return { accountId: a, generation: this.generation };
-      if (method === 'DELETE') { this.generation = g2; return { generation: g2 }; }
+      if (url === '/v1/account') return { accountId: a, generation: this.generation, privacyMode: this.privacyMode, keyId: this.keyId, legacyData: this.legacyData, migrationId: this.migrationId, migrationInstallationId: this.migrationInstallationId };
+      if (url === '/v1/privacy') { this.privacyMode = body.privacyMode; this.keyId = body.keyId; return { privacyMode: this.privacyMode, keyId: this.keyId }; }
+      if (method === 'DELETE') { this.migrationId = body.migrationId; this.migrationInstallationId = body.installationId; this.privacyMode = undefined; this.legacyData = false; this.pages = [{ contributions: [], cursor: null }]; this.generation = g2; return { generation: g2 }; }
       if (url.startsWith('/v1/usage?')) return this.pages[Number(new URLSearchParams(url.split('?')[1]).get('cursor') || 0)];
       return { ok: true };
     }
   };
 }
-async function worker() {
-  const e = environment(); e.cloud = fakeCloud(); await e.start();
+async function worker(cloud = fakeCloud(), installation = 'dddddddd-dddd-4ddd-bddd-dddddddddddd') {
+  const e = environment(); e.crypto = { subtle: crypto.subtle, getRandomValues: crypto.getRandomValues.bind(crypto), randomUUID: () => installation }; e.now = Date.parse('2026-11-01T15:00:00Z'); e.cloud = cloud; await e.start();
   await e.worker.controlCloud({ type: 'siteclock:cloud:signin' });
   return e;
 }
@@ -259,11 +260,11 @@ test('timezone changes preserve assigned dates and use the new timezone for subs
   assert.equal(l.periodTotals('2026-11-01', '2026-11-01')['example.com'], 1000);
   assert.equal(l.totals()['example.com'], 2000);
 });
-test('worker uploads schema 2 and downloads bounded daily history separately from lifetime summaries', async () => {
+test('worker uploads schema 3 and downloads bounded daily history separately from lifetime summaries', async () => {
   const e = await worker(); await control(e, 'enable');
   e.advance(5000); await e.send(); await e.worker.syncCloud(true);
   const upload = e.cloud.calls.find(call => call.method === 'PUT' && call.url === '/v1/usage');
-  assert.equal(upload.body.schemaVersion, 2);
+  assert.equal(upload.body.schemaVersion, 3);
   assert.match(upload.body.counters[0].day, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(e.cloud.calls.some(call => call.url.includes('&from=') && call.url.includes('&to=')));
   const summary = await e.send(1, 'siteclock:summary');
@@ -289,4 +290,132 @@ test('daylight saving fallback counts elapsed time once and the week uses seven 
   } finally {
     if (timezone === undefined) delete process.env.TZ; else process.env.TZ = timezone;
   }
+});
+
+test('first install opens onboarding, while updates and Chrome updates do not', async () => {
+  const e = await worker();
+  e.chrome.runtime.onInstalled.emit({ reason: 'update' }); await e.drain();
+  e.chrome.runtime.onInstalled.emit({ reason: 'chrome_update' }); await e.drain();
+  assert.equal(e.createdTabs, undefined);
+  e.chrome.runtime.onInstalled.emit({ reason: 'install' }); await e.drain();
+  assert.deepEqual(e.createdTabs, [{ url: 'chrome-extension://siteclock-test/welcome.html' }]);
+});
+test('consented onboarding signs in, enables backup and completes its initial sync', async () => {
+  const e = await worker();
+  const result = await control(e, 'signin-enable');
+  assert.equal(result.enabled, true);
+  assert.ok(result.lastSync);
+  const sender = { id: e.chrome.runtime.id, tab: { id: 99 }, url: `chrome-extension://${e.chrome.runtime.id}/welcome.html` };
+  const status = await new Promise(resolve => e.chrome.runtime.onMessage.emit({ type: 'siteclock:cloud:status' }, sender, resolve));
+  assert.equal(status.enabled, true);
+});
+test('cancelled Google onboarding leaves backup disabled and local tracking usable', async () => {
+  const e = await worker();
+  e.cloud.signIn = async () => { throw Error('Sign-in cancelled.'); };
+  await assert.rejects(control(e, 'signin-enable'), /cancelled/);
+  assert.equal(e.worker.cloudStatus().enabled, false);
+  e.advance(5000); await e.send();
+  assert.equal(e.total('example.com'), 5000);
+});
+
+test('default recovery onboarding requires acknowledgement and uploads no readable hostname', async () => {
+  const cloud = fakeCloud(); cloud.privacyMode = undefined;
+  const e = await worker(cloud);
+  const setup = await control(e, 'signin-enable');
+  assert.equal(setup.enabled, false);
+  assert.equal(setup.awaitingRecoveryAcknowledgement, true);
+  assert.match(setup.recoveryCode, /^[A-Za-z0-9_-]{43}$/);
+  assert.equal(cloud.calls.some(c => c.url === '/v1/usage' && c.method === 'PUT'), false);
+  await assert.rejects(control(e, 'enable'), /Save and confirm/);
+  await e.worker.controlCloud({ type: 'siteclock:cloud:enable', savedRecoveryCode: true });
+  e.advance(5000); await e.send(); await e.worker.syncCloud(true);
+  const upload = cloud.calls.find(c => c.url === '/v1/usage' && c.method === 'PUT');
+  assert.equal(JSON.stringify(upload.body).includes('example.com'), false);
+  assert.equal(upload.body.schemaVersion, 3);
+  assert.equal(upload.body.counters[0].encryptedHostname.keyId, cloud.keyId);
+});
+
+test('recovery on another profile restores site totals and rejects a wrong code before uploading', async () => {
+  const cloud = fakeCloud(); cloud.privacyMode = undefined;
+  const first = await worker(cloud);
+  const setup = await control(first, 'signin-enable');
+  await first.worker.controlCloud({ type: 'siteclock:cloud:enable', savedRecoveryCode: true });
+  first.advance(5000); await first.send(); await first.worker.syncCloud(true);
+  const uploaded = cloud.calls.find(c => c.url === '/v1/usage' && c.method === 'PUT').body.counters[0];
+  cloud.pages = [{ contributions: [{ ...uploaded, day: undefined, installationId: 'dddddddd-dddd-4ddd-bddd-dddddddddddd' }], cursor: null }];
+  const second = await worker(cloud, b);
+  const before = cloud.calls.filter(c => c.url === '/v1/usage' && c.method === 'PUT').length;
+  await assert.rejects(second.worker.controlCloud({ type: 'siteclock:cloud:signin-enable', recoveryCode: SiteClockHostnameCrypto.generateSecret() }), /does not match/);
+  assert.equal(second.worker.cloudStatus().enabled, false);
+  assert.equal(cloud.calls.filter(c => c.url === '/v1/usage' && c.method === 'PUT').length, before);
+  await second.worker.controlCloud({ type: 'siteclock:cloud:signin-enable', recoveryCode: setup.recoveryCode });
+  assert.equal(second.worker.cloudStatus().error, null);
+  assert.equal((await second.send(1, 'siteclock:summary')).totals['example.com'], 5000);
+});
+
+test('device encryption creates a separate key on another profile and skips foreign ciphertext', async () => {
+  const cloud = fakeCloud(); cloud.privacyMode = undefined;
+  const first = await worker(cloud);
+  await first.worker.controlCloud({ type: 'siteclock:cloud:signin-enable', privacyMode: 'device' });
+  first.advance(5000); await first.send(); await first.worker.syncCloud(true);
+  const uploaded = cloud.calls.find(c => c.url === '/v1/usage' && c.method === 'PUT').body.counters[0];
+  cloud.pages = [{ contributions: [{ ...uploaded, installationId: 'dddddddd-dddd-4ddd-bddd-dddddddddddd' }], cursor: null }];
+  const second = await worker(cloud, b);
+  await second.worker.controlCloud({ type: 'siteclock:cloud:signin-enable', privacyMode: 'device' });
+  assert.equal(second.worker.cloudStatus().error, null);
+  assert.equal(second.total('example.com'), 0);
+  second.advance(2000); await second.send(); await second.worker.syncCloud(true);
+  const later = cloud.calls.filter(c => c.url === '/v1/usage' && c.method === 'PUT').at(-1).body.counters[0];
+  assert.equal(later.encryptedHostname.keyId, b);
+  assert.notEqual(later.domainId, uploaded.domainId);
+});
+
+async function migrationWorker() {
+  const cloud = fakeCloud(); cloud.legacyData = true;
+  const api = cloud.api;
+  cloud.api = async function(url, method, body, expected) {
+    if (url.startsWith('/v1/usage?') && this.generation === g) {
+      const q = new URLSearchParams(url.split('?')[1]);
+      const day = '2026-11-01';
+      return { contributions: !q.has('from') ? [{ installationId: b, hostname: 'example.com', totalMs: 10000 }]
+        : q.get('from') <= day && q.get('to') >= day ? [{ installationId: b, hostname: 'example.com', totalMs: 3000, day }] : [], cursor: null };
+    }
+    return api.call(this, url, method, body, expected);
+  };
+  return worker(cloud);
+}
+test('plaintext migration preserves daily and lifetime totals and cancels safely before deletion', async () => {
+  const e = await migrationWorker();
+  const setup = await e.worker.controlCloud({ type: 'siteclock:cloud:signin-enable', privacyMode: 'recovery' });
+  assert.equal(setup.awaitingMigrationConfirmation, true);
+  await e.worker.controlCloud({ type: 'siteclock:cloud:enable', privacyMode: 'recovery', savedRecoveryCode: true, confirmMigration: true });
+  assert.equal(e.total('example.com'), 10000);
+  const uploads = e.cloud.calls.filter(c => c.url === '/v1/usage' && c.method === 'PUT').flatMap(c => c.body.counters);
+  assert.deepEqual(uploads.map(r => r.totalMs).sort((a,b) => a-b), [3000, 7000]);
+  assert.equal(JSON.stringify(uploads).includes('example.com'), false);
+  assert.equal(e.persistent.siteclockPrivacyMigration, undefined);
+  const cancelled = await migrationWorker();
+  await cancelled.worker.controlCloud({ type: 'siteclock:cloud:signin-enable', privacyMode: 'device' });
+  await control(cancelled, 'cancel-migration');
+  assert.equal(cancelled.cloud.calls.some(c => c.method === 'DELETE'), false);
+  assert.equal(cancelled.worker.cloudStatus().privacyMode, 'unencrypted');
+});
+
+test('migration resumes after generation advancement and preserves activity after the local rebuild', async () => {
+  const e = await migrationWorker();
+  await e.worker.controlCloud({ type: 'siteclock:cloud:signin-enable', privacyMode: 'recovery' });
+  let failed = false;
+  e.cloud.intercept = async (url, method) => {
+    if (url === '/v1/privacy' && e.cloud.generation === g2 && !failed) { failed = true; throw Error('offline after delete'); }
+  };
+  await assert.rejects(e.worker.controlCloud({ type: 'siteclock:cloud:enable', privacyMode: 'recovery', savedRecoveryCode: true, confirmMigration: true }), /offline/);
+  assert.ok(e.persistent.siteclockPrivacyMigration);
+  e.advance(2000); await e.send();
+  e.cloud.intercept = null;
+  await control(e, 'cancel-migration').catch(error => assert.match(error.message, /recovered locally/));
+  assert.equal(e.total('example.com'), 12000);
+  assert.equal(e.worker.cloudStatus().privacyMode, 'recovery');
+  assert.equal(e.persistent.siteclockPrivacyMigration, undefined);
+  await e.worker.syncCloud(true);
+  assert.equal(e.total('example.com'), 12000);
 });

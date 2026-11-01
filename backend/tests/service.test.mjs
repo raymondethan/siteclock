@@ -77,7 +77,8 @@ test('DynamoDB uploads atomically guard generation and monotonicity', async () =
   const commands = []; const store = new Store({ async send(command) { commands.push(command); return {}; } }, 'T');
   await store.upload(user, generation, device, upload(20).counters[0]);
   const transaction = commands[0].input.TransactItems;
-  assert.equal(transaction[0].ConditionCheck.ConditionExpression, 'generation = :g');
+  assert.match(transaction[0].ConditionCheck.ConditionExpression, /^generation = :g AND /);
+  assert.match(transaction[0].ConditionCheck.ConditionExpression, /attribute_not_exists\(privacyMode\)/);
   assert.match(transaction[1].Update.ConditionExpression, /attribute_not_exists\(periodVersion\)/);
   assert.equal(transaction[1].Update.Key.pk, `ACCOUNT#${user}#${generation}`);
 });

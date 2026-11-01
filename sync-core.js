@@ -93,6 +93,7 @@ globalThis.SiteClockSync = (() => {
         a.localOnlyDaily = addDays(a.localOnlyDaily, a.daily);
         a.daily = {}; a.remoteDaily = {}; a.acknowledgedDaily = {};
         a.local = copy(); a.remote = {}; a.acknowledged = copy(); a.enabled = false;
+        a.privacyMode = null; a.keyId = null;
         a.error = 'Cloud history was deleted. Enable backup again to start a new contribution.';
         a.generation = value;
         return false;

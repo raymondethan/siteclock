@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Welcome to SiteClock</title><link rel="stylesheet" href="options.css"></head>
+<body><main>
+<header><h1>Welcome to SiteClock</h1><p>Your time, across every visit.</p></header>
+<section aria-labelledby="start-heading">
+<h2 id="start-heading">Your first clock is ready</h2>
+<p>Open a website to start tracking. The corner timer shows your total time; hover over it to see today and the last 7 days. Refresh any website tabs that were already open when you installed SiteClock.</p>
+<p class="muted">Only the selected tab in your focused Chrome window counts. Tracking pauses when you leave Chrome, lock your computer, or reach 30 minutes without input.</p>
+</section>
+<section aria-labelledby="choose-heading">
+<h2 id="choose-heading">Choose where to keep your time</h2>
+<p>Use SiteClock on this computer without an account, or choose cloud backup. Recovery-code and unencrypted backup combine site totals across computers; device-only encryption keeps site names separate to each Chrome profile.</p>
+<button id="local">Use on this computer</button>
+<fieldset id="privacyChoices"><legend>Choose how website names are protected in cloud backup</legend>
+<label class="choice"><input type="radio" name="privacyMode" value="recovery" checked> <strong>Encrypted with a recovery code (recommended)</strong><span>Website names are encrypted in the browser. Save a recovery code to unlock and combine site totals on your other computers.</span></label>
+<label class="choice"><input type="radio" name="privacyMode" value="device"> <strong>Encrypted on this computer only</strong><span>A key stays in this Chrome profile. Other computers cannot unlock its site names or combine matching site totals.</span></label>
+<label class="choice"><input type="radio" name="privacyMode" value="unencrypted"> <strong>Unencrypted</strong><span>Website names are readable by the service and its operators. Site totals combine across computers.</span></label>
+</fieldset>
+<label for="recoveryCode">Recovery code, if you already have one</label><input id="recoveryCode" autocomplete="off" spellcheck="false" placeholder="Leave blank when creating a new backup">
+<div class="control"><label><input id="consent" type="checkbox"> I agree to back up website names (encrypted or unencrypted as selected), local calendar dates, and usage durations to my SiteClock account.</label></div>
+<p class="muted">This includes existing, unassigned totals on this installation. Page contents, full URLs, and active-tab information are not uploaded. You can pause backup or delete cloud history in settings. Google handles sign-in; SiteClock never receives your Google password.</p>
+<button id="backup" disabled>Continue with Google &amp; enable backup</button>
+<section id="recoveryPanel" hidden aria-live="polite"><h3 id="recoveryHeading">Save your recovery code</h3><p id="recoveryInstructions">This code is the only way to unlock encrypted site names on another computer if this Chrome profile is unavailable. SiteClock cannot recover it.</p><code id="newRecoveryCode"></code><div class="control"><label id="savedCodeLabel"><input id="savedCode" type="checkbox"> I saved this recovery code somewhere safe.</label></div><div class="control" id="migrationConsentRow" hidden><label><input id="migrationConsent" type="checkbox"> I understand that SiteClock will save a local migration snapshot, replace the existing plaintext cloud history, and upload it again using the selected privacy setting.</label></div><button id="enableAfterRecovery" disabled>Continue</button> <button id="cancelMigration" type="button">Cancel migration and keep plaintext backup</button></section>
+<p id="status" role="status" aria-live="polite">Checking backup availability…</p>
+<button id="retry" hidden>Retry backup</button>
+<button id="browse" hidden>Start browsing</button>
+</section>
+<footer><a href="options.html">Accounts &amp; settings</a> · <a href="https://github.com/raymondethan/siteclock/blob/master/PRIVACY.md" target="_blank" rel="noopener noreferrer">Privacy policy</a><p>Open the SiteClock toolbar popup to see every website. You can pin it from Chrome’s Extensions menu.</p></footer>
+</main><script src="welcome.js"></script></body></html>

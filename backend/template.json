@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Transform": "AWS::Serverless-2016-10-31",
-  "Description": "Optional SiteClock backup with Google accounts, local-calendar daily counters and transactionally consistent lifetime summaries.",
+  "Description": "SiteClock accounts and optional backup with daily counters, transactional lifetime summaries, bounded per-account storage, and production audit logs.",
   "Metadata": {
     "AWSToolsMetrics": {
       "AWSAgentToolkit": "aws-cloudformation@3"
@@ -35,6 +35,20 @@
     "AlertEmail": {
       "Type": "String",
       "AllowedPattern": "[^@\\s]+@[^@\\s]+\\.[^@\\s]+"
+    },
+    "MaxInstallations": {
+      "Type": "Number",
+      "Default": 5,
+      "MinValue": 1,
+      "MaxValue": 20,
+      "Description": "Maximum registered installations per account and history generation."
+    },
+    "MaxUsageRows": {
+      "Type": "Number",
+      "Default": 1000000,
+      "MinValue": 1000,
+      "MaxValue": 10000000,
+      "Description": "Maximum daily and lifetime usage rows per account and history generation."
     }
   },
   "Conditions": {
@@ -511,7 +525,9 @@
           "why": "Bounded event handlers; no persistent server or VPC costs",
           "must": [
             "All account IDs come from validated token claims",
-            "Uploads condition-check the account generation"
+            "Uploads condition-check the account generation",
+            "Enforce installation and usage-row quotas inside the same generation-guarded write transaction",
+            "Authenticate privacy configuration and condition writes on account privacy mode; encryption keys remain on clients"
           ]
         },
         "BuildMethod": "makefile"
@@ -538,6 +554,12 @@
           "Variables": {
             "TABLE_NAME": {
               "Ref": "Data"
+            },
+            "MAX_INSTALLATIONS": {
+              "Ref": "MaxInstallations"
+            },
+            "MAX_USAGE_ROWS": {
+              "Ref": "MaxUsageRows"
             }
           }
         },
@@ -611,6 +633,21 @@
               },
               "Method": "DELETE",
               "Path": "/v1/usage",
+              "Auth": {
+                "AuthorizationScopes": [
+                  "openid"
+                ]
+              }
+            }
+          },
+          "Privacy": {
+            "Type": "HttpApi",
+            "Properties": {
+              "ApiId": {
+                "Ref": "Api"
+              },
+              "Method": "PUT",
+              "Path": "/v1/privacy",
               "Auth": {
                 "AuthorizationScopes": [
                   "openid"
@@ -957,6 +994,183 @@
           }
         ]
       }
+    },
+    "AuditBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Condition": "Production",
+      "DeletionPolicy": "Retain",
+      "UpdateReplacePolicy": "Retain",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Durable encrypted security audit history for production; no browsing-data events",
+          "must": [
+            "Keep private, encrypted, versioned and retained on stack deletion",
+            "Expire audit objects after 365 days"
+          ]
+        }
+      },
+      "Properties": {
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "IgnorePublicAcls": true,
+          "BlockPublicPolicy": true,
+          "RestrictPublicBuckets": true
+        },
+        "OwnershipControls": {
+          "Rules": [
+            {
+              "ObjectOwnership": "BucketOwnerEnforced"
+            }
+          ]
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "audit-retention",
+              "Status": "Enabled",
+              "ExpirationInDays": 365,
+              "NoncurrentVersionExpiration": {
+                "NoncurrentDays": 30
+              },
+              "AbortIncompleteMultipartUpload": {
+                "DaysAfterInitiation": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    "AuditBucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Condition": "Production",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Allow only the production trail to deliver account audit logs; deny non-TLS access",
+          "must": [
+            "Scope CloudTrail delivery by exact source trail ARN and account",
+            "Never grant public read access"
+          ]
+        }
+      },
+      "Properties": {
+        "Bucket": {
+          "Ref": "AuditBucket"
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Deny",
+              "Principal": "*",
+              "Action": "s3:*",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "AuditBucket",
+                    "Arn"
+                  ]
+                },
+                {
+                  "Fn::Sub": "${AuditBucket.Arn}/*"
+                }
+              ],
+              "Condition": {
+                "Bool": {
+                  "aws:SecureTransport": "false"
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudtrail.amazonaws.com"
+              },
+              "Action": "s3:GetBucketAcl",
+              "Resource": {
+                "Fn::GetAtt": [
+                  "AuditBucket",
+                  "Arn"
+                ]
+              },
+              "Condition": {
+                "StringEquals": {
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}-audit"
+                  },
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            },
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudtrail.amazonaws.com"
+              },
+              "Action": "s3:PutObject",
+              "Resource": {
+                "Fn::Sub": "${AuditBucket.Arn}/AWSLogs/${AWS::AccountId}/*"
+              },
+              "Condition": {
+                "StringEquals": {
+                  "s3:x-amz-acl": "bucket-owner-full-control",
+                  "aws:SourceArn": {
+                    "Fn::Sub": "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/${AWS::StackName}-audit"
+                  },
+                  "aws:SourceAccount": {
+                    "Ref": "AWS::AccountId"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "AuditTrail": {
+      "Type": "AWS::CloudTrail::Trail",
+      "Condition": "Production",
+      "DependsOn": "AuditBucketPolicy",
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Record write-management events with integrity digests in the approved deployment region",
+          "must": [
+            "Keep logging and integrity validation enabled",
+            "Do not enable Lambda or DynamoDB data events containing private usage payloads"
+          ]
+        }
+      },
+      "Properties": {
+        "TrailName": {
+          "Fn::Sub": "${AWS::StackName}-audit"
+        },
+        "S3BucketName": {
+          "Ref": "AuditBucket"
+        },
+        "IsLogging": true,
+        "IsMultiRegionTrail": false,
+        "IncludeGlobalServiceEvents": true,
+        "EnableLogFileValidation": true,
+        "EventSelectors": [
+          {
+            "ReadWriteType": "WriteOnly",
+            "IncludeManagementEvents": true
+          }
+        ]
+      }
     }
   },
   "Outputs": {
@@ -988,6 +1202,30 @@
     "TableName": {
       "Value": {
         "Ref": "Data"
+      }
+    },
+    "Environment": {
+      "Value": {
+        "Ref": "Environment"
+      }
+    },
+    "StackName": {
+      "Value": {
+        "Ref": "AWS::StackName"
+      }
+    },
+    "ExtensionId": {
+      "Value": {
+        "Ref": "ExtensionId"
+      }
+    },
+    "AuditTrailArn": {
+      "Condition": "Production",
+      "Value": {
+        "Fn::GetAtt": [
+          "AuditTrail",
+          "Arn"
+        ]
       }
     }
   }

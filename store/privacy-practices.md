@@ -55,8 +55,7 @@ Disclose local processing as well as transmission; do not claim that the
 extension handles no user data just because it has no server.
 
 - **Web history / web browsing activity:** Yes. The extension processes tab URLs
-  to identify hostnames and retains hostname totals and daily counters labeled by local calendar date locally and uploads them to AWS only when backup is enabled. It does not retain
-  visited URL paths, query strings, or page titles.
+  to identify hostnames and retains hostname totals and daily counters labeled by local calendar date locally. When backup is enabled, it uploads hostnames either as readable text or as client-encrypted ciphertext with keyed opaque identifiers, depending on the selected account mode. Dates and durations remain readable by the service. It does not retain visited URL paths, query strings, or page titles.
 - **User activity:** Yes. The extension measures active browsing duration and
   uses window focus and Chrome's active/idle/locked state. It does not log
   individual clicks, mouse movements, or keystrokes.
@@ -69,6 +68,7 @@ extension handles no user data just because it has no server.
 The current implementation supports the following statements:
 
 - Data is not sold. Google and AWS process data only for the requested sign-in and backup services.
+- Recovery-code mode encrypts hostnames before upload; the code is never sent to the service. Device-only mode encrypts hostnames with a key kept in that Chrome profile. Plaintext mode is an explicit user choice.
 - Data is used only for the stated website-timing purpose.
 - Data is not used to assess creditworthiness or for lending.
 - Browsing data is not used for advertising or unrelated profiling.

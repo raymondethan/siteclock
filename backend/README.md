@@ -51,8 +51,8 @@ One table has string keys `pk` and `sk`:
 
 - `ACCOUNT#<Cognito sub>` / `PROFILE`: `version`, `createdAt`, current UUID `generation`.
 - `ACCOUNT#<sub>#<generation>` / `INSTALL#<installationId>`: creation and last-sync timestamps.
-- Same generation partition / `USAGE#<installationId>#<hostname>`: installation ID, normalized hostname, lifetime `totalMs`, `baselineMs` for undated pre-upgrade history, `dailyMs`, optimistic `revision`, and server `updatedAt`.
-- Same generation partition / `DAY#<YYYY-MM-DD>#INSTALL#<installationId>#HOST#<hostname>`: cumulative `totalMs` for that local calendar date, plus date, installation ID and hostname.
+- Same generation partition / `USAGE#<installationId>#<siteKey>`: installation ID, lifetime `totalMs`, `baselineMs` for undated pre-upgrade history, `dailyMs`, optimistic `revision`, and server `updatedAt`. For unencrypted mode, `siteKey` is the normalized hostname and the row stores it. For encrypted modes, it is an opaque HMAC-derived `domainId`; only the AES-GCM encrypted hostname envelope is stored.
+- Same generation partition / `DAY#<YYYY-MM-DD>#INSTALL#<installationId>#HOST#<siteKey>`: cumulative `totalMs` for that local calendar date, plus date and installation ID. The key uses the same plaintext hostname or opaque `domainId` as the lifetime row.
 - `CLEANUP` / `<sub>#<retired generation>`: retired partition and job creation timestamp. Jobs persist until every retired record is removed.
 
 No secondary indexes, account scans, full URLs, or active-tab/session data. Cognito owns authentication and the Google identity mapping; the table does not store passwords or Google tokens.
@@ -61,9 +61,10 @@ All routes require a Cognito access token from this stack's public client, with 
 
 | Route | Request | Response |
 |---|---|---|
-| `GET /v1/account` | — | `accountId`, `generation`, display identity fallback |
+| `GET /v1/account` | — | `accountId`, `generation`, `privacyMode`, `keyId`, pending migration metadata, display identity fallback, and whether legacy data exists |
 | `PUT /v1/installations` | `generation`, `installationId` | `ok` |
-| `PUT /v1/usage` | `generation`, `installationId`, `schemaVersion: 2`, `counters: [{hostname, totalMs, day?}]` (1–50); omit `day` for the undated baseline | `ok` |
+| `PUT /v1/privacy` | `privacyMode: recovery|device|unencrypted`, or an explicit migration lock/cancel request | current mode and migration state |
+| `PUT /v1/usage` | `generation`, `installationId`, `schemaVersion: 3`, `counters` (1–50); counters contain `hostname` for unencrypted mode or `{domainId, encryptedHostname}` for encrypted modes, plus `totalMs` and optional `day`; omit `day` for the undated baseline | `ok` |
 | `GET /v1/usage` | query `generation`, optional `from`/`to` calendar dates and opaque `cursor` | `generation`, `contributions`, next `cursor` or null |
 | `DELETE /v1/usage` | `generation` being deleted | current/new `generation` |
 
@@ -73,7 +74,9 @@ Deletion atomically advances the profile generation and adds a cleanup job. The 
 
 ## Recovery and privacy
 
-Production enables seven-day DynamoDB point-in-time recovery, table deletion protection, and retained state on stack deletion/replacement. Dev retains state too, but does not enable PITR or deletion protection. API/Lambda logs retain for 14 days; only operation names, route templates, status codes, latency, and request identifiers are logged. No hostnames, payloads, claims, or tokens belong in logs.
+Production enables seven-day DynamoDB point-in-time recovery, table deletion protection, and retained state on stack deletion/replacement. Dev retains state too, but does not enable PITR or deletion protection. API/Lambda logs retain for 14 days; only operation names, route templates, status codes, latency, and request identifiers are logged. No hostnames, payloads, claims, or tokens belong in logs. The account's privacy mode is selected by its first configuration and the server validates each upload against it. In recovery mode, a user-supplied recovery code derives the encryption keys and must be kept to restore hostnames on another computer. In device mode, the random key stays in that Chrome profile; other installations' hostnames cannot be decrypted or combined by site. Unencrypted mode stores hostnames in DynamoDB. Dates and durations remain visible in every mode.
+
+Changing mode with existing cloud history uses an explicit migration lock. The client first snapshots and converts the data it can read, then atomically selects the target privacy mode while advancing the generation and uploads the converted local snapshot. While locked, stale in-flight writes are rejected. If the snapshot exceeds client limits or conversion fails before deletion, the user can cancel and keep the existing plaintext cloud data. A lost recovery code cannot be recovered by the service. See `../docs/ENCRYPTION.md` and `../PRIVACY.md` for the threat model and user-facing behavior.
 
 PITR restores into a **new table**. A recovery must preserve later deletions: keep the current account profiles and pending cleanup jobs authoritative, and copy only restored records whose generation still matches those current profiles. Never point production at a historical table wholesale. Validate that users who deleted cloud history remain empty. If the current deletion records are unavailable, do not restore user history automatically; investigate first. An account's usage is a backup of uploaded data, not a guarantee that the last minute before abrupt device failure was uploaded.
 
@@ -109,8 +112,10 @@ After deployment, use two distinct Chrome profiles with the same Google account:
 
 Calendar dates are assigned on the tracking computer, using its local timezone at accounting checkpoints. Intervals split at local midnight; timezone changes affect subsequent intervals and do not regroup history. Last 7 days means today plus the previous six calendar dates, not a rolling 168 hours. Lifetime includes all prior usage; daily views begin at upgrade. No timezone identifier or full browsing events are uploaded.
 
-Schema-2 baseline uploads preserve the maximum of the old lifetime counter and the supplied undated baseline. Daily uploads strongly read the daily record and summary, compute the increase, and transactionally compare-and-swap both records with a profile generation check. Conflicts reread and retry; duplicate or older counters add nothing. The summary stores `totalMs = baselineMs + dailyMs`. All comparisons are server-side; the client never uploads an authoritative lifetime total combining daily and undated usage. Existing schema-1 clients continue to work for their own unmigrated contributions. A legacy upload for an already migrated installation/hostname receives HTTP 426 rather than corrupting its summary.
+Schema-2 baseline uploads preserve the maximum of the old lifetime counter and supplied undated baseline. Schema-3 uploads use the same summary consistency rules across all three privacy modes: daily uploads strongly read the daily record and summary, compute the increase, and transactionally compare-and-swap both records with profile generation and privacy-mode checks. Conflicts reread and retry; duplicate or older counters add nothing. The summary stores `totalMs = baselineMs + dailyMs`. All comparisons are server-side; the client never uploads an authoritative lifetime total combining daily and undated usage. Schema-1/2 clients remain supported only for accounts that have not selected an incompatible privacy mode; legacy writes are rejected after mode configuration or migration.
 
 The existing table, routes and table-scoped IAM permissions support this model. There is no backfill that fabricates historical dates and no database replacement. Sync reads lifetime summary rows and only the current seven-day daily range. Calendar-range pagination cursors are bound to the account, generation and exact requested range; ranges are limited to 366 days per request. Monthly views can use the same date-range API, though the current UI displays Today, Last 7 days and Total.
 
 Run `python3 tools/period_smoke.py` after a development deployment to exercise the actual Lambda execution role and DynamoDB transactions, including baseline migration, concurrent uploads, calendar-range queries, and stale-generation rejection. The script uses a random synthetic account via IAM-authenticated Lambda invocation and removes only its own test records. It does not test Google login or API Gateway JWT verification; verify those through the installed extension separately.
+
+Run `python3 tools/privacy_smoke.py` after a development deployment for synthetic encrypted/plaintext and migration checks. Node.js 22+ must be on PATH (or pass `--node`). Keys stay local to the smoke process; only synthetic account partitions are removed. Run `cfn-lint --regions us-east-2 --template backend/template.json` and `cfn-guard validate --rules tools/security.guard --data backend/template.json --output-format json` before deployment.

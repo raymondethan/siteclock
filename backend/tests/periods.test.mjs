@@ -11,7 +11,7 @@ const host = 'example.com';
 const row = (totalMs, day = '2026-11-01') => ({ hostname: host, totalMs, ...(day ? { day } : {}) });
 // An atomic in-memory command adapter exercises the real Store retry algorithm.
 // Live integration separately verifies these expressions against DynamoDB.
-function database() {
+function database(limits = {}) {
   const items = new Map([[`ACCOUNT#${id}/PROFILE`, { pk: `ACCOUNT#${id}`, sk: 'PROFILE', generation }]]);
   const key = value => `${value.pk}/${value.sk}`;
   let transactions = 0;
@@ -27,6 +27,13 @@ function database() {
       const expression = action.ConditionExpression;
       let valid = true;
       if (part.ConditionCheck) valid = current?.generation === values[':g'];
+      else if (expression?.startsWith('generation = :g')) {
+        valid = current?.generation === values[':g'];
+        if (values[':remaining'] !== undefined) valid &&= (current?.usageRows || 0) <= values[':remaining'];
+        if (values[':max'] !== undefined) valid &&= (current?.installationCount || 0) < values[':max'];
+      }
+      else if (expression === 'generation = :expected') valid = current?.generation === values[':expected'];
+      else if (!expression) valid = true;
       else if (expression === 'attribute_not_exists(pk)') valid = !current;
       else if (expression === 'revision = :revision') valid = current?.revision === values[':revision'];
       else if (expression === 'totalMs = :old AND attribute_not_exists(revision)') valid = current?.totalMs === values[':old'] && current?.revision === undefined;
@@ -40,12 +47,17 @@ function database() {
       if (part.Put) items.set(key(part.Put.Item), structuredClone(part.Put.Item));
       if (part.Update) {
         const v = part.Update.ExpressionAttributeValues;
-        items.set(key(part.Update.Key), { ...part.Update.Key, totalMs: v[':ms'], installationId: v[':id'], hostname: v[':host'] });
+        const current = items.get(key(part.Update.Key)) || { ...part.Update.Key };
+        if (v[':added'] !== undefined) items.set(key(part.Update.Key), { ...current, usageRows: (current.usageRows || 0) + v[':added'] });
+        else if (v[':one'] !== undefined) items.set(key(part.Update.Key), { ...current, installationCount: (current.installationCount || 0) + v[':one'] });
+        else if (v[':next']) items.set(key(part.Update.Key), { ...current, generation: v[':next'], usageRows: 0, installationCount: 0 });
+        else if (v[':now'] !== undefined && v[':ms'] === undefined) items.set(key(part.Update.Key), { ...current, lastSyncAt: v[':now'] });
+        else items.set(key(part.Update.Key), { ...part.Update.Key, totalMs: v[':ms'], installationId: v[':id'], hostname: v[':host'] });
       }
     }
     return {};
   } };
-  return { store: new Store(client, 'T'), items, summary: () => items.get(`${pk}/USAGE#${installation}#${host}`), transactions: () => transactions };
+  return { store: new Store(client, 'T', limits), items, summary: () => items.get(`${pk}/USAGE#${installation}#${host}`), transactions: () => transactions };
 }
 test('baseline migration plus daily retries preserves exact lifetime totals', async () => {
   const db = database();
@@ -114,4 +126,36 @@ test('daily pagination cursors are bound to the account, generation and exact da
   }
   await assert.rejects(store.usage(id, generation, cursor(valid)), error => error.status === 400);
   assert.equal(queries, 1);
+});
+
+test('installation quota is atomic, idempotent at the limit, and enforced on uploads without explicit registration', async () => {
+  const db = database({ maxInstallations: 1, maxUsageRows: 10 });
+  await Promise.all([db.store.register(id, generation, installation), db.store.register(id, generation, installation)]);
+  assert.equal(db.items.get(`ACCOUNT#${id}/PROFILE`).installationCount, 1);
+  await db.store.register(id, generation, installation); // re-sync is still allowed
+  const api = createHandler(db.store);
+  const result = await api({ rawPath: '/v1/usage', body: JSON.stringify({ generation, installationId: next,
+    schemaVersion: 2, counters: [row(20)] }), requestContext: { http: { method: 'PUT' },
+    authorizer: { jwt: { claims: { sub: id, token_use: 'access' } } } } });
+  assert.equal(result.statusCode, 429);
+  assert.equal(db.summary(), undefined);
+});
+test('usage quota counts each record once, allows existing counters to grow, and resets on cloud deletion', async () => {
+  const db = database({ maxInstallations: 1, maxUsageRows: 3 });
+  await db.store.register(id, generation, installation);
+  await db.store.uploadPeriod(id, generation, installation, row(100, null)); // one summary
+  await db.store.uploadPeriod(id, generation, installation, row(10));
+  await db.store.uploadPeriod(id, generation, installation, row(20, '2026-11-02'));
+  await db.store.uploadPeriod(id, generation, installation, row(20, '2026-11-02')); // retry
+  assert.equal(db.items.get(`ACCOUNT#${id}/PROFILE`).usageRows, 3);
+  await assert.rejects(db.store.uploadPeriod(id, generation, installation, row(5, '2026-11-03')), error => error.status === 429);
+  await db.store.uploadPeriod(id, generation, installation, row(30));
+  assert.equal(db.summary().totalMs, 150);
+  assert.equal(db.items.get(`ACCOUNT#${id}/PROFILE`).usageRows, 3);
+  await db.store.clear(id, generation, next);
+  assert.equal(db.items.get(`ACCOUNT#${id}/PROFILE`).usageRows, 0);
+  assert.equal(db.items.get(`ACCOUNT#${id}/PROFILE`).installationCount, 0);
+  await db.store.register(id, next, installation);
+  await db.store.uploadPeriod(id, next, installation, row(5));
+  assert.equal(db.items.get(`ACCOUNT#${id}/PROFILE`).usageRows, 2);
 });

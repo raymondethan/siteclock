@@ -3,7 +3,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const root = path.resolve(__dirname, '..');
 globalThis.backgroundSource = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
-for (const file of ['content.js', 'popup.js', 'options.js', 'cloud-client.js', 'cloud-config.js']) {
+for (const file of ['content.js', 'popup.js', 'options.js', 'cloud-client.js', 'cloud-config.js', 'welcome.js']) {
   new vm.Script(fs.readFileSync(path.join(root, file), 'utf8'), { filename: file });
 }
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));

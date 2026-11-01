@@ -1,0 +1,24 @@
+# Project checks complement CloudFormation lint and service preflight validation.
+let tables = Resources.*[ Type == 'AWS::DynamoDB::Table' ]
+rule table_encryption_and_retention when %tables !empty {
+  %tables {
+    Properties.SSESpecification.SSEEnabled == true
+    DeletionPolicy == 'Retain'
+    UpdateReplacePolicy == 'Retain'
+  }
+}
+let buckets = Resources.*[ Type == 'AWS::S3::Bucket' ]
+rule private_encrypted_buckets when %buckets !empty {
+  %buckets.Properties {
+    PublicAccessBlockConfiguration.BlockPublicAcls == true
+    PublicAccessBlockConfiguration.IgnorePublicAcls == true
+    PublicAccessBlockConfiguration.BlockPublicPolicy == true
+    PublicAccessBlockConfiguration.RestrictPublicBuckets == true
+    BucketEncryption.ServerSideEncryptionConfiguration !empty
+    VersioningConfiguration.Status == 'Enabled'
+  }
+}
+rule authenticated_api {
+  Resources.Api.Properties.Auth.DefaultAuthorizer == 'Cognito'
+  Resources.Handler.Properties.Events.*.Properties.Auth.AuthorizationScopes == ['openid']
+}

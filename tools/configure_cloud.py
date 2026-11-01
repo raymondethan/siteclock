@@ -31,15 +31,17 @@ def configuration(outputs):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('outputs', type=Path)
+    parser.add_argument('--root', type=Path, default=ROOT)
     args = parser.parse_args()
+    target = args.root.resolve()
     values = configuration(json.loads(args.outputs.read_text()))
-    manifest = json.loads((ROOT / 'manifest.json').read_text())
+    manifest = json.loads((target / 'manifest.json').read_text())
     origins = [values['apiBase'], values['authBase']]
     manifest['host_permissions'] = [origin + '/*' for origin in origins]
     manifest['content_security_policy'] = {'extension_pages': "script-src 'self'; object-src 'self'; connect-src 'self' " + ' '.join(origins) + ';'}
-    (ROOT / 'cloud-config.js').write_text('/* Public deployment configuration. No secrets. */\n' +
+    (target / 'cloud-config.js').write_text('/* Public deployment configuration. No secrets. */\n' +
         'globalThis.SiteClockCloudConfig = Object.freeze(' + json.dumps(values, indent=2) + ');\n')
-    (ROOT / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
+    (target / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
     print('Configured public AWS endpoints and exact extension host permissions. Reload SiteClock in Chrome.')
 
 if __name__ == '__main__':

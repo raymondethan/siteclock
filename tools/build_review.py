@@ -2,6 +2,7 @@
 from pathlib import Path
 from html import escape
 import re
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -60,27 +61,34 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 def page(title, content):
     return f'<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{escape(title)}</title><style>{CSS}</style></head><body><main>{content}</main></body></html>\n'
 
-policy = markdown((ROOT/'PRIVACY.md').read_text())
-(ROOT/'store/privacy-policy.html').write_text(page('SiteClock Privacy Policy', '<article>'+policy+'</article>'))
-screenshots = [
-    ('screenshots/02-on-page-timer-640x400.png', 'Compact live capture · 640 × 400'),
-    ('screenshots/01-on-page-timer-1280x800.png', 'Full live capture · 1280 × 800'),
-]
-shots = ''.join(f'<figure class="card"><a href="{src}"><img src="{src}" alt="SiteClock timer on the public example domain"></a><figcaption>{label}. Actual capture; the timer is paused at zero on this new site. No personal browsing history is shown.</figcaption></figure>' for src,label in screenshots)
-gallery = '''
-<span class="status">Approved submission materials · store submission pending</span>
-<h1>SiteClock</h1><p class="intro">A minimal website timer. Here are the package, artwork, and store copy.</p>
-<nav><a href="#artwork">Artwork</a><a href="#screenshots">Screenshots</a><a href="#copy">Listing copy</a><a href="#privacy">Privacy</a></nav>
-<div class="files"><a href="../dist/siteclock-0.3.0.zip">Release ZIP · v0.3.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
-<h2 id="artwork">Icon &amp; promotional artwork</h2><div class="grid">
-<figure class="card"><img src="assets/icon-preview.png" alt="Browser-window clock icon on light and dark backgrounds"><figcaption>Browser outline + clock hands. Slate and mint. PNG sizes: 16, 32, 48, and 128 pixels. <a href="../icons/siteclock.svg">Editable SVG</a>.</figcaption></figure>
-<figure class="card"><a href="assets/promo-small-440x280.png"><img src="assets/promo-small-440x280.png" alt="SiteClock — Time spent on each website."></a><figcaption>Required small promotional tile · 440 × 280.</figcaption></figure>
-<figure class="card wide"><a href="assets/promo-marquee-1400x560.png"><img src="assets/promo-marquee-1400x560.png" alt="SiteClock — Time spent on each website. A small timer. A running total. Stored locally."></a><figcaption>Optional marquee · 1400 × 560.</figcaption></figure></div>
-<h2 id="screenshots">Live screenshots</h2><p>The installed extension on a neutral public page. These are genuine captures, not simulated product UI.</p><div class="grid">'''+shots+'''</div>
-<h2 id="copy">Copy &amp; disclosures</h2><details open><summary>Store listing</summary>'''+markdown((ROOT/'store/listing.md').read_text())+'''</details>
-<details id="privacy"><summary>Privacy policy</summary>'''+policy+'''</details>
-<details><summary>Dashboard privacy answers</summary>'''+markdown((ROOT/'store/privacy-practices.md').read_text())+'''</details>
-<p class="foot">The ZIP contains only production files and PNG icons. The policy is hosted in the public repository. The store submission is pending; see SUBMISSION.md for account and dashboard steps.</p>
-'''
-(ROOT/'store/review.html').write_text(page('SiteClock · Store submission review', gallery))
-print('Built store/review.html and store/privacy-policy.html from the review drafts.')
+def build():
+    policy = markdown((ROOT/'PRIVACY.md').read_text())
+    (ROOT/'store/privacy-policy.html').write_text(page('SiteClock Privacy Policy', '<article>'+policy+'</article>'))
+    screenshots = [
+        ('screenshots/02-on-page-timer-640x400.png', 'Compact live capture · 640 × 400'),
+        ('screenshots/01-on-page-timer-1280x800.png', 'Full live capture · 1280 × 800'),
+    ]
+    shots = ''.join(f'<figure class="card"><a href="{src}"><img src="{src}" alt="SiteClock timer on the public example domain"></a><figcaption>{label}. Actual capture; the timer is paused at zero on this new site. No personal browsing history is shown.</figcaption></figure>' for src,label in screenshots)
+    gallery = '''
+    <span class="status">Release draft · store submission pending</span>
+    <h1>SiteClock</h1><p class="intro">A minimal website timer. Here are the package, artwork, and store copy.</p>
+    <nav><a href="#artwork">Artwork</a><a href="#screenshots">Screenshots</a><a href="#copy">Listing copy</a><a href="#privacy">Privacy</a></nav>
+    <div class="files"><a href="../dist/siteclock-0.3.0.zip">Release ZIP · v0.3.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
+    <h2 id="artwork">Icon &amp; promotional artwork</h2><div class="grid">
+    <figure class="card"><img src="assets/icon-preview.png" alt="Browser-window clock icon on light and dark backgrounds"><figcaption>Browser outline + clock hands. Slate and mint. PNG sizes: 16, 32, 48, and 128 pixels. <a href="../icons/siteclock.svg">Editable SVG</a>.</figcaption></figure>
+    <figure class="card"><a href="assets/promo-small-440x280.png"><img src="assets/promo-small-440x280.png" alt="SiteClock — Time spent on each website."></a><figcaption>Required small promotional tile · 440 × 280.</figcaption></figure>
+    <figure class="card wide"><a href="assets/promo-marquee-1400x560.png"><img src="assets/promo-marquee-1400x560.png" alt="SiteClock — Time spent on each website. A small timer. A running total. Stored locally."></a><figcaption>Optional marquee · 1400 × 560.</figcaption></figure></div>
+    <h2 id="screenshots">Live screenshots</h2><p>Earlier local-only release on a neutral public page. Replace these actual captures with the current interface before publishing.</p><div class="grid">'''+shots+'''</div>
+    <h2 id="copy">Copy &amp; disclosures</h2><details open><summary>Store listing</summary>'''+markdown((ROOT/'store/listing.md').read_text())+'''</details>
+    <details id="privacy"><summary>Privacy policy</summary>'''+policy+'''</details>
+    <details><summary>Dashboard privacy answers</summary>'''+markdown((ROOT/'store/privacy-practices.md').read_text())+'''</details>
+    <p class="foot">The ZIP contains only production files and PNG icons. The policy is hosted in the public repository. The store submission is pending; see SUBMISSION.md for account and dashboard steps.</p>
+    '''
+    version = json.loads((ROOT/'manifest.json').read_text())['version']
+    gallery = gallery.replace('siteclock-0.3.0.zip', f'siteclock-{version}.zip').replace('v0.3.0', f'v{version}')
+    (ROOT/'store/review.html').write_text(page('SiteClock · Store submission review', gallery))
+    print('Built store/review.html and store/privacy-policy.html from the review drafts.')
+
+
+if __name__ == "__main__":
+    build()

@@ -28,7 +28,7 @@ function environment(persistent = {}, session = {}) {
   };
   env.chrome = {
     runtime: {
-      id: 'siteclock-test', onMessage: signal(), onStartup: signal(), onInstalled: signal()
+      id: 'siteclock-test', getURL: path => `chrome-extension://siteclock-test/${path}`, onMessage: signal(), onStartup: signal(), onInstalled: signal()
     },
     storage: {
       local: {
@@ -42,6 +42,7 @@ function environment(persistent = {}, session = {}) {
           Object.assign(env.persistent, clone(values));
           env.writes++;
         },
+        async remove(key) { delete env.persistent[key]; },
         async setAccessLevel(value) { env.accessLevel = value.accessLevel; }
       },
       session: {
@@ -50,6 +51,7 @@ function environment(persistent = {}, session = {}) {
       }
     },
     tabs: {
+      async create(options) { (env.createdTabs ||= []).push(options); return { id: 99, ...options }; },
       onActivated: signal(), onUpdated: signal(), onCreated: signal(), onRemoved: signal(), onReplaced: signal(), onAttached: signal(), onDetached: signal(),
       async get(id) {
         const tab = env.tabList.find(tab => tab.id === id);
@@ -76,7 +78,7 @@ function environment(persistent = {}, session = {}) {
     const factory = new Function('chrome', 'importScripts', 'SiteClockCore', 'SiteClockSync', 'SiteClockCloud', 'crypto', 'Date', 'console',
       backgroundSource + '\nreturn { drain: () => queue.tail, syncCloud, controlCloud, cloudStatus };');
     env.worker = factory(env.chrome, () => {}, SiteClockCore, SiteClockSync, env.cloud || { configured: false },
-      { randomUUID: () => `session-${env.now}` }, { now: () => env.now },
+      env.crypto || { randomUUID: () => `session-${env.now}` }, class extends Date { constructor(...args) { super(...(args.length ? args : [env.now])); } static now() { return env.now; } },
       { error: (...args) => env.errors.push(args.join(' ')) });
     await env.worker.drain();
   };

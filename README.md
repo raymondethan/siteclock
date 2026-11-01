@@ -38,12 +38,21 @@ Keep this directory in place: Chrome loads the extension directly from it.
 
 ## Storage and reliability
 
-`chrome.storage.local` contains a version-2 `siteclock` checkpoint: the current
+`chrome.storage.local` contains a version-3 `siteclock` checkpoint: the current
 installation's contribution, active accounting boundary, random installation ID,
 account-separated local counters, acknowledgements, and downloaded contributions.
 Version-1 totals migrate locally without enabling backup or making network requests.
 A separate `siteclockAuth` record holds trusted-context authentication tokens after
 sign-in. Active tab/session information stays local.
+
+Onboarding offers three cloud hostname modes. Recovery-code encryption is the
+recommended default and enables site-name matching across computers; the code
+must be saved because SiteClock cannot recover it. Device-only encryption keeps
+its key in one Chrome profile, so site names and matching site totals from other
+computers cannot be combined. Unencrypted backup keeps cross-computer site totals
+and lets the service read hostnames. Dates and durations remain readable in every
+mode. Existing plaintext history is migrated only after a local snapshot and an
+explicit confirmation.
 
 Local mode requires no account. Open **Accounts & settings** from the popup to sign
 in with Google and explicitly enable cloud backup for this installation. Enabling

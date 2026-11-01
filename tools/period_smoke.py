@@ -104,6 +104,22 @@ def main():
             checks.append('legacy uploads cannot overwrite migrated summaries')
             upload([row(1, '2026-02-30')], expected=400)
             checks.append('invalid calendar dates rejected')
+            # Registration is enforced by uploads as well as the explicit route.
+            for _ in range(3):
+                invoke('PUT', {'generation': generation, 'installationId': str(uuid.uuid4()),
+                    'schemaVersion': 2, 'counters': [row(0)]})
+            upload([row(1)], device=str(uuid.uuid4()), expected=429)
+            checks.append('installation quota enforced even without explicit registration')
+            saved_profile = deployment.aws('dynamodb', 'get-item', '--table-name', table,
+                '--key', json.dumps(profile_key), '--consistent-read')['Item']
+            actual_rows = int(saved_profile['usageRows']['N'])
+            deployment.aws('dynamodb', 'update-item', '--table-name', table, '--key', json.dumps(profile_key),
+                '--update-expression', 'SET usageRows = :n', '--expression-attribute-values', json.dumps({':n': {'N': '999999'}}))
+            upload([{'hostname': 'quota-smoke.example', 'day': '2026-11-01', 'totalMs': 1}], expected=429)
+            assert sum(r['totalMs'] for r in read()) == 162000
+            deployment.aws('dynamodb', 'update-item', '--table-name', table, '--key', json.dumps(profile_key),
+                '--update-expression', 'SET usageRows = :n', '--expression-attribute-values', json.dumps({':n': {'N': str(actual_rows)}}))
+            checks.append('storage quota rejects the entire daily-summary transaction')
             old = generation
             generation = invoke('DELETE', {'generation': old})['generation']
             generations.add(generation)

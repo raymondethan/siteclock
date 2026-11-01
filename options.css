@@ -7,3 +7,11 @@ button { padding: 10px 16px; margin: 6px 8px 6px 0; border: 1px solid #647b70; b
 button:disabled { opacity: .5; cursor: default; } button.danger { border-color: #ad7474; background: #422c2c; }
 .control { margin-top: 20px; } label { font-weight: 600; } input { margin-right: 8px; }
 .muted, footer { color: #aeb8c1; font-size: 13px; } #status { min-height: 24px; } footer { padding-bottom: 24px; }
+fieldset { border: 1px solid #d8e0df; border-radius: 12px; padding: 16px; margin: 16px 0; }
+fieldset legend { color: #344; font-weight: 650; padding: 0 6px; }
+.choice { display: grid; grid-template-columns: 20px 1fr; gap: 4px 8px; margin: 12px 0; }
+.choice input { grid-row: span 2; }
+.choice span { color: #647078; font-size: .94rem; }
+#recoveryCode { display: block; width: 100%; box-sizing: border-box; margin: 6px 0 12px; }
+#recoveryPanel { margin-top: 18px; padding: 16px; border-radius: 12px; background: #eef5f3; }
+#newRecoveryCode { display: block; overflow-wrap: anywhere; padding: 12px; background: white; border-radius: 8px; font-size: 1rem; }

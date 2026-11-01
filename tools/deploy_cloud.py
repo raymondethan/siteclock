@@ -1,7 +1,7 @@
-"""Deploy the isolated SiteClock development stack through the existing AWS CLI.
+"""Deploy isolated SiteClock development or production through the existing AWS CLI.
 
-Uses ignored .test-build/deploy/development.json and google-oauth.json. Never
-prints credentials, passes secret values in arguments, or modifies other stacks.
+Uses ignored environment metadata and google-oauth.json under .test-build/deploy. Never
+prints credentials, passes secret values in arguments, or modifies unrelated stacks. Production requires --environment prod.
 Run `python3 tools/deploy_cloud.py preflight` before `... deploy`.
 """
 import argparse
@@ -27,13 +27,15 @@ def write_json(path, value, private=False):
 
 
 class Deployment:
-    def __init__(self):
-        self.settings = json.loads((WORK / 'development.json').read_text())
+    def __init__(self, environment='dev'):
+        self.environment = environment
+        filename = 'production.json' if environment == 'prod' else 'development.json'
+        self.settings = json.loads((WORK / filename).read_text())
         self.profile = self.settings['profile']
         self.region = self.settings['region']
         self.stack = self.settings['stackName']
-        if self.stack != 'siteclock-dev' or self.region not in ['us-east-1', 'us-east-2']:
-            raise SystemExit('This helper is restricted to siteclock-dev in the approved US East regions.')
+        if environment not in ['dev', 'prod'] or self.stack != f'siteclock-{environment}' or self.region != 'us-east-2':
+            raise SystemExit('This helper requires the matching siteclock-dev/prod stack in Ohio.')
         self.account = self.settings['awsAccountId']
         self.domain = self.settings['authDomainPrefix']
         self.bucket = f'{self.stack}-artifacts-{self.account}-{self.region}'
@@ -63,7 +65,7 @@ class Deployment:
     def preflight(self):
         identity = self.aws('sts', 'get-caller-identity')
         if identity['Account'] != self.account:
-            raise RuntimeError('AWS account does not match the approved development account.')
+            raise RuntimeError('AWS account does not match the configured AWS account.')
         print(f'AWS account verified: {self.account}; region: {self.region}', flush=True)
         limits = self.aws('lambda', 'get-account-settings')
         available = limits['AccountLimit']['UnreservedConcurrentExecutions']
@@ -78,7 +80,7 @@ class Deployment:
                 logging.append(trail['Name'])
         print('CloudTrail logging trails: ' + (', '.join(logging) if logging else 'none verified; management event history only, reduced durable auditability'), flush=True)
         existing = self.existing_stack(self.stack)
-        print(f'Development stack: {existing["StackStatus"] if existing else "not deployed"}', flush=True)
+        print(f'Target stack: {existing["StackStatus"] if existing else "not deployed"}', flush=True)
         if existing and existing['StackStatus'].endswith('_IN_PROGRESS'):
             raise RuntimeError('A stack operation is already running; inspect status before retrying.')
         domain = self.aws('cognito-idp', 'describe-user-pool-domain', '--domain', self.domain).get('DomainDescription', {})
@@ -87,7 +89,7 @@ class Deployment:
                                 '--logical-resource-id', 'Users') if existing else {}
             if domain['UserPoolId'] != resource.get('StackResourceDetail', {}).get('PhysicalResourceId'):
                 raise RuntimeError('The selected Cognito domain is already owned by another user pool.')
-        values = {'Environment': 'dev', 'ExtensionId': self.settings['extensionId'],
+        values = {'Environment': self.environment, 'ExtensionId': self.settings['extensionId'],
                   'GoogleClientId': self.settings['googleClientId'], 'AuthDomainPrefix': self.domain,
                   'AlertEmail': self.settings['alertEmail']}
         template = json.loads((ROOT / 'backend/template.json').read_text())
@@ -247,42 +249,51 @@ class Deployment:
         template = json.loads((ROOT / 'backend/template.json').read_text())
         for name in ['Handler', 'Cleanup']:
             template['Resources'][name]['Properties']['CodeUri'] = {'Bucket': self.bucket, 'Key': artifact_key}
-        for extension_id in self.settings.get('testExtensionIds', []):
+        for extension_id in (self.settings.get('testExtensionIds', []) if self.environment == 'dev' else []):
             if re.fullmatch('[a-p]{32}', extension_id) is None:
                 raise RuntimeError('Invalid isolated test extension ID.')
             callback = f'https://{extension_id}.chromiumapp.org/oauth2'
             if callback not in template['Resources']['App']['Properties']['CallbackURLs']:
                 template['Resources']['App']['Properties']['CallbackURLs'].append(callback)
-        if self.settings.get('localhostTestCallback'):
+        if self.environment == 'dev' and self.settings.get('localhostTestCallback'):
             callback = self.settings['localhostTestCallback']
             if re.fullmatch(r'http://localhost:[0-9]{4,5}/oauth/callback', callback) is None:
                 raise RuntimeError('Invalid temporary localhost test callback.')
             template['Resources']['App']['Properties']['CallbackURLs'].append(callback)
         path = WORK / 'application-template.json'
         write_json(path, template)
-        values = {'Environment': 'dev', 'ExtensionId': self.settings['extensionId'],
+        values = {'Environment': self.environment, 'ExtensionId': self.settings['extensionId'],
                   'GoogleClientId': self.settings['googleClientId'], 'GoogleSecretArn': secret,
                   'AuthDomainPrefix': self.domain, 'AlertEmail': self.settings['alertEmail']}
         self.apply(self.stack, path, [{'ParameterKey': k, 'ParameterValue': v} for k, v in values.items()],
                    ['CAPABILITY_IAM', 'CAPABILITY_AUTO_EXPAND'])
         outputs = self.existing_stack(self.stack)['Outputs']
         write_json(WORK / 'outputs.json', outputs)
-        print('Development stack deployed. Public outputs saved in .test-build/deploy/outputs.json.', flush=True)
-        subprocess.run(['python3', str(ROOT / 'tools/configure_cloud.py'), str(WORK / 'outputs.json')], check=True, cwd=ROOT)
+        print(f'{self.stack} deployed. Public outputs saved in {WORK / "outputs.json"}.', flush=True)
+        if self.environment == 'dev':
+            subprocess.run(['python3', str(ROOT / 'tools/configure_cloud.py'), str(WORK / 'outputs.json')], check=True, cwd=ROOT)
+        else:
+            print('Development extension configuration preserved. Use tools/prepare_release.py for the production package.', flush=True)
 
 
 def main():
+    global WORK
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('action', choices=['preflight', 'deploy', 'status', 'permissions', 'events', 'resources', 'recover-empty-create'])
+    parser.add_argument('--environment', choices=['dev', 'prod'], default='dev')
     parser.add_argument('--check-region', choices=['us-east-1', 'us-east-2'], help='Read-only permission checks in another region')
     arguments = parser.parse_args()
-    deployment = Deployment()
+    if arguments.environment == 'prod':
+        WORK = WORK / 'production'
+    deployment = Deployment(arguments.environment)
     try:
         if arguments.action == 'preflight':
             deployment.preflight()
         elif arguments.action == 'deploy':
             deployment.deploy()
         elif arguments.action == 'recover-empty-create':
+            if deployment.environment != 'dev':
+                raise RuntimeError('Empty-create recovery is development-only. Production recovery requires a separate review.')
             stack = deployment.existing_stack(deployment.stack)
             if not stack or stack['StackStatus'] != 'ROLLBACK_COMPLETE':
                 raise RuntimeError('Recovery applies only to a failed initial development creation.')
