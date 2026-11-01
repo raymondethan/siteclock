@@ -1,6 +1,6 @@
 # SiteClock Privacy Policy
 
-Last updated: October 29, 2026
+Last updated: November 1, 2026
 
 SiteClock measures cumulative active browsing time per website. It works locally without an account. Optional cloud backup lets you restore saved totals and see combined usage across computers. Cloud backup is off by default for each installation.
 
@@ -12,7 +12,7 @@ Chrome may provide full URLs, titles, and other tab metadata in memory. SiteCloc
 
 ## Local storage
 
-Chrome extension-local storage holds hostname totals, accounting checkpoints, a random installation identifier, account-separated contributions and cached cloud totals, and backup preferences. Temporary browser-session state distinguishes worker restarts from browser restarts. The installation identifier is random, is not a hardware identifier, and is replaced when extension-local data is erased.
+Chrome extension-local storage holds hostname totals and daily usage counters labeled by local calendar date, accounting checkpoints, a random installation identifier, account-separated contributions and cached cloud totals, and backup preferences. Temporary browser-session state distinguishes worker restarts from browser restarts. The installation identifier is random, is not a hardware identifier, and is replaced when extension-local data is erased.
 
 After sign-in, the extension also stores SiteClock authentication tokens locally to maintain your session. These tokens are restricted to trusted extension contexts; they are not exposed to website content scripts. People or software with access to your Chrome profile may be able to access local data. SiteClock does not add its own local encryption layer.
 
@@ -20,11 +20,13 @@ After sign-in, the extension also stores SiteClock authentication tokens locally
 
 You can choose Continue with Google to create or access your SiteClock account. Google handles your Google credentials; SiteClock never receives your Google password. Google and Amazon Cognito process the identity information needed for authentication, including your account identifier and email. SiteClock requests basic identity access, not access to Google browsing history.
 
-Signing in alone does not enable usage backup. When you enable backup, SiteClock uploads existing unassigned hostname totals from this installation and subsequent cumulative usage. Previously assigned history stays separate between accounts. Your account stores each installation's hostname totals and registration/sync timestamps, allowing contributions to be combined without duplicate counting.
+Signing in alone does not enable usage backup. When you enable backup, SiteClock uploads existing unassigned hostname totals from this installation and subsequent cumulative usage. Previously assigned history stays separate between accounts. Your account stores each installation's hostname totals, daily counters labeled by local calendar date, and registration/sync timestamps, allowing contributions to be combined without duplicate counting.
 
-Backup uses Amazon Web Services: Cognito for authentication, API Gateway and Lambda for authenticated requests, and DynamoDB for stored usage. The default deployment region is US East (Northern Virginia). Hosting providers necessarily process connection and authentication metadata needed to operate the service. Application logs exclude hostnames, usage payloads, tokens, and full URLs; configured operational logs expire after 14 days.
+Backup uses Amazon Web Services: Cognito for authentication, API Gateway and Lambda for authenticated requests, and DynamoDB for stored usage. The current development deployment region is US East (Ohio); production deployment configuration determines its region. Hosting providers necessarily process connection and authentication metadata needed to operate the service. Application logs exclude hostnames, usage payloads, tokens, and full URLs; configured operational logs expire after 14 days.
 
 While backup is enabled, the extension normally uploads changes and refreshes totals about once a minute while Chrome runs, and at startup or when you open the popup. Timing is best-effort. Offline tracking continues locally; unsent changes upload when connectivity returns. A sudden failure or deletion of local storage before upload can lose recent unbacked-up time.
+
+Daily dates reflect the local timezone on the computer when tracking occurs. Last 7 days means today and the preceding six calendar dates. Historical dates are not rewritten when you travel. Usage saved before daily tracking was introduced is included in lifetime totals only.
 
 ## Your controls and retention
 

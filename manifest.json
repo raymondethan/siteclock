@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "SiteClock",
-  "version": "0.2.0",
-  "description": "See your total time on each website. Optional cloud backup keeps your totals across computers.",
+  "version": "0.3.0",
+  "description": "See daily, last 7 days, and lifetime website usage. Optional cloud backup syncs your totals across computers.",
   "icons": {
     "16": "icons/icon-16.png",
     "32": "icons/icon-32.png",
@@ -44,5 +44,12 @@
   "options_ui": {
     "page": "options.html",
     "open_in_tab": true
+  },
+  "host_permissions": [
+    "https://aer3rw6m6b.execute-api.us-east-2.amazonaws.com/*",
+    "https://siteclock-dev-513323.auth.us-east-2.amazoncognito.com/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'; connect-src 'self' https://aer3rw6m6b.execute-api.us-east-2.amazonaws.com https://siteclock-dev-513323.auth.us-east-2.amazoncognito.com;"
   }
 }

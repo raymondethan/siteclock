@@ -16,7 +16,7 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <span class="status">Approved submission materials · store submission pending</span>
 <h1>SiteClock</h1><p class="intro">A minimal website timer. Here are the package, artwork, and store copy.</p>
 <nav><a href="#artwork">Artwork</a><a href="#screenshots">Screenshots</a><a href="#copy">Listing copy</a><a href="#privacy">Privacy</a></nav>
-<div class="files"><a href="../dist/siteclock-0.2.0.zip">Release ZIP · v0.2.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
+<div class="files"><a href="../dist/siteclock-0.3.0.zip">Release ZIP · v0.3.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
 <h2 id="artwork">Icon &amp; promotional artwork</h2><div class="grid">
 <figure class="card"><img src="assets/icon-preview.png" alt="Browser-window clock icon on light and dark backgrounds"><figcaption>Browser outline + clock hands. Slate and mint. PNG sizes: 16, 32, 48, and 128 pixels. <a href="../icons/siteclock.svg">Editable SVG</a>.</figcaption></figure>
 <figure class="card"><a href="assets/promo-small-440x280.png"><img src="assets/promo-small-440x280.png" alt="SiteClock — Time spent on each website."></a><figcaption>Required small promotional tile · 440 × 280.</figcaption></figure>
@@ -26,14 +26,15 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <h2>Name</h2>
 <p>SiteClock</p>
 <h2>Short description</h2>
-<p>See your total time on each website in a small on-page timer. Optional cloud backup keeps your totals across computers.</p>
+<p>See today, last 7 days, and lifetime website usage. Optional cloud backup keeps your totals across computers.</p>
 <h2>Detailed description</h2>
 <p>SiteClock keeps a running total of the time you spend on each website and shows it in a small timer in the corner of the page.</p>
 <p>The total carries across pages and visits. Open the toolbar popup to see your website totals, sorted by time spent.</p>
 <ul>
 <li>Counts the selected tab in the focused Chrome window.</li>
 <li>Pauses when Chrome loses focus, your computer locks, or you have been inactive for 30 minutes.</li>
-<li>Keeps totals across browser and computer restarts, with no daily reset.</li>
+<li>Shows Today, Last 7 days, and Total; lifetime totals persist across restarts.</li>
+<li>Uses local calendar dates. Earlier history appears in Total; daily history starts at upgrade.</li>
 <li>Works locally without an account. Optional Google sign-in and cloud backup combine your totals across computers. Backup is off by default per installation.</li>
 <li>Pause backup anytime, or separately delete cloud history. No ads or analytics.</li>
 <li>Groups pages by hostname, ignoring a leading www. Other subdomains are separate.</li>
@@ -63,19 +64,20 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <h2>Cloud release verification</h2>
 <p>The release must be configured against the production AWS stack and published extension ID before upload. Test Google sign-in and opt-in backup with two Chrome profiles as described in <code>../backend/README.md</code>. The unconfigured source build is local-only; do not advertise working cloud backup for that build.</p></details>
 <details id="privacy"><summary>Privacy policy</summary><h1>SiteClock Privacy Policy</h1>
-<p>Last updated: October 29, 2026</p>
+<p>Last updated: November 1, 2026</p>
 <p>SiteClock measures cumulative active browsing time per website. It works locally without an account. Optional cloud backup lets you restore saved totals and see combined usage across computers. Cloud backup is off by default for each installation.</p>
 <h2>Information used</h2>
 <p>SiteClock uses the selected tab&#x27;s URL to determine its hostname, such as <code>example.com</code>, and uses tab/window focus and Chrome&#x27;s active, idle, and locked signals to decide when to count time. It does not record individual keystrokes, clicks, or mouse movements. Incognito browsing is not tracked.</p>
 <p>Chrome may provide full URLs, titles, and other tab metadata in memory. SiteClock does not persist or upload URL paths, query strings, page titles, page contents, forms, passwords, or cookies. A leading <code>www.</code> is removed; other subdomains remain separate.</p>
 <h2>Local storage</h2>
-<p>Chrome extension-local storage holds hostname totals, accounting checkpoints, a random installation identifier, account-separated contributions and cached cloud totals, and backup preferences. Temporary browser-session state distinguishes worker restarts from browser restarts. The installation identifier is random, is not a hardware identifier, and is replaced when extension-local data is erased.</p>
+<p>Chrome extension-local storage holds hostname totals and daily usage counters labeled by local calendar date, accounting checkpoints, a random installation identifier, account-separated contributions and cached cloud totals, and backup preferences. Temporary browser-session state distinguishes worker restarts from browser restarts. The installation identifier is random, is not a hardware identifier, and is replaced when extension-local data is erased.</p>
 <p>After sign-in, the extension also stores SiteClock authentication tokens locally to maintain your session. These tokens are restricted to trusted extension contexts; they are not exposed to website content scripts. People or software with access to your Chrome profile may be able to access local data. SiteClock does not add its own local encryption layer.</p>
 <h2>Accounts and optional cloud backup</h2>
 <p>You can choose Continue with Google to create or access your SiteClock account. Google handles your Google credentials; SiteClock never receives your Google password. Google and Amazon Cognito process the identity information needed for authentication, including your account identifier and email. SiteClock requests basic identity access, not access to Google browsing history.</p>
-<p>Signing in alone does not enable usage backup. When you enable backup, SiteClock uploads existing unassigned hostname totals from this installation and subsequent cumulative usage. Previously assigned history stays separate between accounts. Your account stores each installation&#x27;s hostname totals and registration/sync timestamps, allowing contributions to be combined without duplicate counting.</p>
-<p>Backup uses Amazon Web Services: Cognito for authentication, API Gateway and Lambda for authenticated requests, and DynamoDB for stored usage. The default deployment region is US East (Northern Virginia). Hosting providers necessarily process connection and authentication metadata needed to operate the service. Application logs exclude hostnames, usage payloads, tokens, and full URLs; configured operational logs expire after 14 days.</p>
+<p>Signing in alone does not enable usage backup. When you enable backup, SiteClock uploads existing unassigned hostname totals from this installation and subsequent cumulative usage. Previously assigned history stays separate between accounts. Your account stores each installation&#x27;s hostname totals, daily counters labeled by local calendar date, and registration/sync timestamps, allowing contributions to be combined without duplicate counting.</p>
+<p>Backup uses Amazon Web Services: Cognito for authentication, API Gateway and Lambda for authenticated requests, and DynamoDB for stored usage. The current development deployment region is US East (Ohio); production deployment configuration determines its region. Hosting providers necessarily process connection and authentication metadata needed to operate the service. Application logs exclude hostnames, usage payloads, tokens, and full URLs; configured operational logs expire after 14 days.</p>
 <p>While backup is enabled, the extension normally uploads changes and refreshes totals about once a minute while Chrome runs, and at startup or when you open the popup. Timing is best-effort. Offline tracking continues locally; unsent changes upload when connectivity returns. A sudden failure or deletion of local storage before upload can lose recent unbacked-up time.</p>
+<p>Daily dates reflect the local timezone on the computer when tracking occurs. Last 7 days means today and the preceding six calendar dates. Historical dates are not rewritten when you travel. Usage saved before daily tracking was introduced is included in lifetime totals only.</p>
 <h2>Your controls and retention</h2>
 <ul>
 <li>With backup off, usage stays local. Signing in still communicates with Google and the account service for authentication.</li>
@@ -112,7 +114,7 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <h2>Data-type disclosures</h2>
 <p>Disclose local processing as well as transmission; do not claim that the extension handles no user data just because it has no server.</p>
 <ul>
-<li><strong>Web history / web browsing activity:</strong> Yes. The extension processes tab URLs to identify hostnames and retains hostname totals locally and uploads them to AWS only when backup is enabled. It does not retain visited URL paths, query strings, or page titles.</li>
+<li><strong>Web history / web browsing activity:</strong> Yes. The extension processes tab URLs to identify hostnames and retains hostname totals and daily counters labeled by local calendar date locally and uploads them to AWS only when backup is enabled. It does not retain visited URL paths, query strings, or page titles.</li>
 <li><strong>User activity:</strong> Yes. The extension measures active browsing duration and uses window focus and Chrome&#x27;s active/idle/locked state. It does not log individual clicks, mouse movements, or keystrokes.</li>
 <li><strong>Personally identifiable information:</strong> Yes, basic Google account identity and email for optional account sign-in.</li>
 <li><strong>Authentication information:</strong> Yes, SiteClock access and refresh tokens. The extension never receives the Google password.</li>

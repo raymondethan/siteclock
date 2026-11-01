@@ -78,7 +78,7 @@ test('DynamoDB uploads atomically guard generation and monotonicity', async () =
   await store.upload(user, generation, device, upload(20).counters[0]);
   const transaction = commands[0].input.TransactItems;
   assert.equal(transaction[0].ConditionCheck.ConditionExpression, 'generation = :g');
-  assert.equal(transaction[1].Update.ConditionExpression, 'attribute_not_exists(totalMs) OR totalMs < :ms');
+  assert.match(transaction[1].Update.ConditionExpression, /attribute_not_exists\(periodVersion\)/);
   assert.equal(transaction[1].Update.Key.pk, `ACCOUNT#${user}#${generation}`);
 });
 test('DynamoDB conditional duplicate succeeds, generation conflict fails', async () => {

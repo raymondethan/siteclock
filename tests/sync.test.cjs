@@ -132,7 +132,7 @@ test('worker preserves tracking while upload is in flight and retries network fa
   const sync = e.worker.syncCloud(true); await ready;
   e.advance(5000); await e.send(); release(); await sync;
   assert.equal(e.total('example.com'), 10_000);
-  assert.equal(e.persistent.siteclock.cloud.accounts[a].acknowledged['example.com'], 5000);
+  assert.equal(Object.values(e.persistent.siteclock.cloud.accounts[a].acknowledgedDaily)[0]['example.com'], 5000);
   e.cloud.intercept = async () => { throw Error('offline'); };
   await e.worker.syncCloud(true);
   assert.match(e.worker.cloudStatus().error, /Local tracking continues/);
@@ -183,4 +183,110 @@ test('sign-out invalidates an in-flight sync before credentials or ownership cha
   assert.equal(e.worker.cloudStatus().signedIn, false);
   assert.equal(e.cloud.calls.length, before); // no subsequent registration/upload/download
   assert.equal(e.persistent.siteclock.cloud.accounts[a].local['example.com'], 6000);
+});
+test('options and popup pages opened as tabs can request trusted extension data', async () => {
+  const e = await worker();
+  for (const page of ['options.html', 'popup.html?view=totals']) {
+    const sender = { id: e.chrome.runtime.id, tab: { id: 99 }, url: `chrome-extension://${e.chrome.runtime.id}/${page}` };
+    const status = await new Promise(resolve => e.chrome.runtime.onMessage.emit({ type: 'siteclock:cloud:status' }, sender, resolve));
+    assert.equal(status.signedIn, true);
+    const summary = await new Promise(resolve => e.chrome.runtime.onMessage.emit({ type: 'siteclock:summary' }, sender, resolve));
+    assert.equal(summary.cloud.configured, true);
+  }
+});
+test('website URLs and other extension origins cannot invoke trusted controls', async () => {
+  const e = await worker();
+  for (const url of ['https://example.com/options.html', 'https://example.com/?next=chrome-extension://siteclock-test/options.html', 'chrome-extension://another-extension/options.html']) {
+    let responded = false;
+    e.chrome.runtime.onMessage.emit({ type: 'siteclock:cloud:status' },
+      { id: e.chrome.runtime.id, tab: { id: 99 }, url }, () => { responded = true; });
+    await e.drain();
+    assert.equal(responded, false);
+  }
+});
+
+
+test('daily migration preserves lifetime, resets legacy acknowledgements, and never invents historical dates', () => {
+  const l = ledger(a, { 'example.com': 100 }); enable(l);
+  l.account.acknowledged['example.com'] = 100;
+  const old = JSON.parse(JSON.stringify(l.state));
+  delete old.accounts[a].periodVersion;
+  const upgraded = new Ledger(old, {}, () => b);
+  assert.equal(upgraded.totals()['example.com'], 100);
+  assert.deepEqual(upgraded.periodTotals('2026-01-01', '2026-12-31'), Object.create(null));
+  assert.deepEqual(upgraded.pending(), [{ hostname: 'example.com', totalMs: 100 }]);
+  upgraded.acknowledge(upgraded.pending());
+  const restored = new Ledger(JSON.parse(JSON.stringify(upgraded.state)), {}, () => b);
+  assert.deepEqual(restored.pending(), []);
+});
+test('midnight splits usage exactly, and last seven days excludes the eighth calendar date', () => {
+  const l = ledger(); enable(l);
+  const midnight = Date.parse('2026-11-01T00:00:00Z');
+  l.record('example.com', midnight - 5000, midnight + 7000, 0);
+  l.record('example.com', Date.parse('2026-10-25T12:00:00Z'), Date.parse('2026-10-25T12:00:01Z'), 0);
+  assert.equal(l.totals()['example.com'], 13000);
+  assert.equal(l.periodTotals('2026-11-01', '2026-11-01')['example.com'], 7000);
+  assert.equal(l.periodTotals('2026-10-26', '2026-11-01')['example.com'], 12000);
+  const rows = l.pending();
+  assert.equal(rows.length, 3); // all time is dated, no invented baseline
+  l.record('example.com', midnight + 7000, midnight + 8000, 0);
+  l.acknowledge(rows);
+  assert.deepEqual(l.pending(), [{ hostname: 'example.com', day: '2026-11-01', totalMs: 8000 }]);
+});
+test('daily imports, cross-installation merging, pauses, deletion and account changes preserve ownership', () => {
+  const l = ledger();
+  const at = Date.parse('2026-11-01T12:00:00Z');
+  l.record('example.com', at, at + 1000, 0);
+  enable(l); l.pause(); l.enable(g); // unassigned import exactly once
+  l.merge([{ installationId: b, hostname: 'example.com', day: '2026-11-01', totalMs: 2000 },
+    { installationId: a, hostname: 'example.com', day: '2026-11-01', totalMs: 1000 }]);
+  assert.equal(l.periodTotals('2026-11-01', '2026-11-01')['example.com'], 3000);
+  l.pause(); assert.equal(l.periodTotals('2026-11-01', '2026-11-01')['example.com'], 1000);
+  l.generation(g2);
+  assert.equal(l.periodTotals('2026-11-01', '2026-11-01')['example.com'], 1000);
+  l.enable(g2);
+  assert.equal(l.periodTotals('2026-11-01', '2026-11-01')['example.com'], undefined);
+  assert.deepEqual(l.pending(), []);
+  l.signOut(); l.signIn(b, 'b@example.test'); l.enable(g);
+  assert.equal(l.periodTotals('2026-11-01', '2026-11-01')['example.com'], undefined);
+});
+test('timezone changes preserve assigned dates and use the new timezone for subsequent intervals', () => {
+  const l = ledger();
+  const at = Date.parse('2026-11-01T01:00:00Z');
+  l.record('example.com', at, at + 1000, 240); // October 31 in New York
+  l.record('example.com', at + 1000, at + 2000, -60); // November 1 in Europe
+  assert.equal(l.periodTotals('2026-10-31', '2026-10-31')['example.com'], 1000);
+  assert.equal(l.periodTotals('2026-11-01', '2026-11-01')['example.com'], 1000);
+  assert.equal(l.totals()['example.com'], 2000);
+});
+test('worker uploads schema 2 and downloads bounded daily history separately from lifetime summaries', async () => {
+  const e = await worker(); await control(e, 'enable');
+  e.advance(5000); await e.send(); await e.worker.syncCloud(true);
+  const upload = e.cloud.calls.find(call => call.method === 'PUT' && call.url === '/v1/usage');
+  assert.equal(upload.body.schemaVersion, 2);
+  assert.match(upload.body.counters[0].day, /^\d{4}-\d{2}-\d{2}$/);
+  assert.ok(e.cloud.calls.some(call => call.url.includes('&from=') && call.url.includes('&to=')));
+  const summary = await e.send(1, 'siteclock:summary');
+  assert.equal(summary.periods.today['example.com'], 5000);
+  assert.equal(summary.periods.week['example.com'], 5000);
+});
+
+test('daylight saving fallback counts elapsed time once and the week uses seven calendar dates', () => {
+  const timezone = process.env.TZ;
+  try {
+    process.env.TZ = 'America/New_York';
+    const at = Date.parse('2026-11-01T05:59:55Z');
+    const tracker = new SiteClockCore.Tracker(null, 'session', at, () => a);
+    const active = { tabId: 1, hostname: 'example.com' };
+    tracker.transition(active, at);
+    tracker.transition(active, at + 10000); // 01:59:55 EDT -> 01:00:05 EST
+    tracker.transition(active, at + 20000);
+    assert.equal(tracker.displayTotals()['example.com'], 20000);
+    assert.equal(tracker.periods().today['example.com'], 20000);
+    assert.deepEqual(SiteClockSync.recentDays(Date.parse('2026-11-02T05:00:00Z')),
+      { from: '2026-10-27', to: '2026-11-02' });
+    assert.equal(SiteClockSync.localDay(Date.parse('2026-11-02T04:59:59Z')), '2026-11-01');
+  } finally {
+    if (timezone === undefined) delete process.env.TZ; else process.env.TZ = timezone;
+  }
 });

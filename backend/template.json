@@ -1,7 +1,7 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
   "Transform": "AWS::Serverless-2016-10-31",
-  "Description": "Optional SiteClock account backup with Google federation, an authenticated API and generation-guarded per-installation counters.",
+  "Description": "Optional SiteClock backup with Google accounts, local-calendar daily counters and transactionally consistent lifetime summaries.",
   "Metadata": {
     "AWSToolsMetrics": {
       "AWSAgentToolkit": "aws-cloudformation@3"
@@ -52,10 +52,12 @@
       "Type": "AWS::DynamoDB::Table",
       "Metadata": {
         "com.aws.cloudformation.Context": {
-          "why": "Per-installation monotonic counters and persistent deletion jobs",
+          "why": "Daily per-installation counters and lifetime summaries share the existing table; transactions preserve summary consistency",
           "must": [
             "Retain table on stack deletion or replacement",
-            "Generation checks and uploads must be transactional"
+            "Generation checks and uploads must be transactional",
+            "Daily counter and lifetime summary updates commit atomically",
+            "Preserve pre-upgrade usage as undated lifetime baseline"
           ]
         }
       },
@@ -99,7 +101,15 @@
               false
             ]
           },
-          "RecoveryPeriodInDays": 7
+          "RecoveryPeriodInDays": {
+            "Fn::If": [
+              "Production",
+              7,
+              {
+                "Ref": "AWS::NoValue"
+              }
+            ]
+          }
         }
       },
       "DeletionPolicy": "Retain",
@@ -281,7 +291,8 @@
           "why": "HTTP API provides JWT auth at lower cost than REST API",
           "must": [
             "Every application route requires access-token authorization",
-            "Do not log request bodies or authorization headers"
+            "Do not log request bodies or authorization headers",
+            "Extension requests use exact host permissions; API Gateway CORS supports HTTP origins only"
           ]
         }
       },
@@ -308,23 +319,6 @@
         "DefaultRouteSettings": {
           "ThrottlingBurstLimit": 20,
           "ThrottlingRateLimit": 10
-        },
-        "CorsConfiguration": {
-          "AllowOrigins": [
-            {
-              "Fn::Sub": "chrome-extension://${ExtensionId}"
-            }
-          ],
-          "AllowMethods": [
-            "GET",
-            "PUT",
-            "DELETE",
-            "OPTIONS"
-          ],
-          "AllowHeaders": [
-            "Authorization",
-            "Content-Type"
-          ]
         },
         "AccessLogSettings": {
           "DestinationArn": {

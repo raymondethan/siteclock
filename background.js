@@ -154,6 +154,15 @@ const reconcile = async () => {
 chrome.runtime.onStartup.addListener(() => event(reconcile));
 chrome.runtime.onInstalled.addListener(() => event(reconcile));
 
+function isExtensionPage(sender) {
+  // Chrome includes sender.tab for options pages opened in a tab. A content
+  // script also has sender.tab, but its sender.url is the website's URL.
+  if (!sender.tab) return true;
+  const page = sender.url?.split(/[?#]/)[0];
+  const origin = `chrome-extension://${chrome.runtime.id}/`;
+  return page === `${origin}options.html` || page === `${origin}popup.html`;
+}
+
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id) return;
   if (message?.type === 'siteclock:heartbeat' && sender.tab && sender.frameId === 0) {
@@ -178,17 +187,17 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
     }).then(respond, error => { report(error); respond({ error: 'Could not save time. Retrying on the next update.' }); });
     return true;
   }
-  if (message?.type === 'siteclock:summary' && !sender.tab) {
+  if (message?.type === 'siteclock:summary' && isExtensionPage(sender)) {
     const at = Date.now();
     dispatch(async () => {
       await refreshWindows();
       idleState = await chrome.idle.queryState(IDLE_SECONDS);
-    }, at).then(() => respond({ totals: tracker.displayTotals(), active: tracker.active, cloud: cloudStatus() }), error => {
+    }, at).then(() => respond({ totals: tracker.displayTotals(), periods: tracker.periods(), active: tracker.active, cloud: cloudStatus() }), error => {
       report(error); respond({ error: 'Could not load totals.' });
     });
     return true;
   }
-  if (message?.type?.startsWith('siteclock:cloud:') && !sender.tab) {
+  if (message?.type?.startsWith('siteclock:cloud:') && isExtensionPage(sender)) {
     controlCloud(message).then(respond, error => respond({ error: error.message }));
     return true;
   }
@@ -249,18 +258,23 @@ function syncCloud(force = false) {
       for (let index = 0; index < captured.rows.length; index += 50) {
         if (!valid()) return;
         const batch = captured.rows.slice(index, index + 50);
-        await call('/v1/usage', 'PUT', { generation: captured.generation, installationId: captured.installationId, counters: batch });
+        await call('/v1/usage', 'PUT', { generation: captured.generation, installationId: captured.installationId, schemaVersion: 2, counters: batch });
         await mutateCloud(ledger => { if (valid()) ledger.acknowledge(batch); });
       }
-      let cursor;
-      do {
-        if (!valid()) return;
-        const query = new URLSearchParams({ generation: captured.generation });
-        if (cursor) query.set('cursor', cursor);
-        const page = await call(`/v1/usage?${query}`);
-        await mutateCloud(ledger => { if (valid()) ledger.merge(page.contributions); });
-        cursor = page.cursor;
-      } while (cursor);
+      // Lifetime summaries and only the visible seven-day window are downloaded.
+      // Historical daily records remain in DynamoDB for future date-range views.
+      const range = SiteClockSync.recentDays(Date.now());
+      for (const period of [null, range]) {
+        let cursor;
+        do {
+          if (!valid()) return;
+          const query = new URLSearchParams({ generation: captured.generation, ...(period || {}) });
+          if (cursor) query.set('cursor', cursor);
+          const page = await call(`/v1/usage?${query}`);
+          await mutateCloud(ledger => { if (valid()) ledger.merge(page.contributions); });
+          cursor = page.cursor;
+        } while (cursor);
+      }
       await mutateCloud(ledger => {
         if (!valid()) return;
         Object.assign(ledger.account, { lastSync: Date.now(), error: null, failures: 0, retryAt: 0 });
@@ -279,7 +293,7 @@ function syncCloud(force = false) {
         const a = ledger.account;
         a.failures++;
         a.retryAt = Date.now() + Math.min(30 * 60_000, 60_000 * 2 ** Math.min(a.failures - 1, 5)) * (0.75 + Math.random() * 0.5);
-        a.error = error.status === 401 ? 'Sign in again to resume backup.' : 'Could not sync. Local tracking continues; backup will retry.';
+        a.error = error.status === 426 ? 'Update SiteClock to resume backup.' : error.status === 401 ? 'Sign in again to resume backup.' : 'Could not sync. Local tracking continues; backup will retry.';
         if (error.status === 401) a.enabled = false;
       });
     }

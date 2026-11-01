@@ -6,7 +6,7 @@ SiteClock
 
 ## Short description
 
-See your total time on each website in a small on-page timer. Optional cloud backup keeps your totals across computers.
+See today, last 7 days, and lifetime website usage. Optional cloud backup keeps your totals across computers.
 
 ## Detailed description
 
@@ -19,7 +19,8 @@ website totals, sorted by time spent.
 - Counts the selected tab in the focused Chrome window.
 - Pauses when Chrome loses focus, your computer locks, or you have been inactive
   for 30 minutes.
-- Keeps totals across browser and computer restarts, with no daily reset.
+- Shows Today, Last 7 days, and Total; lifetime totals persist across restarts.
+- Uses local calendar dates. Earlier history appears in Total; daily history starts at upgrade.
 - Works locally without an account. Optional Google sign-in and cloud backup
   combine your totals across computers. Backup is off by default per installation.
 - Pause backup anytime, or separately delete cloud history. No ads or analytics.

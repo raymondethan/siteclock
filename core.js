@@ -35,11 +35,17 @@ globalThis.SiteClockCore = (() => {
       this.active = saved?.sessionId === sessionId ? saved.active : null;
       this.lastAt = saved?.sessionId === sessionId && Number.isFinite(saved.lastAt)
         ? saved.lastAt : at;
+      this.lastOffset = saved?.sessionId === sessionId && Number.isFinite(saved.lastOffset)
+        ? saved.lastOffset : new Date(at).getTimezoneOffset();
     }
 
     bindLedger() { this.totals = this.ledger.local(); }
 
     displayTotals() { return this.ledger.totals(); }
+    periods(at = this.lastAt) {
+      const { from, to } = SiteClockSync.recentDays(at);
+      return { today: this.ledger.periodTotals(to, to), week: this.ledger.periodTotals(from, to), total: this.displayTotals() };
+    }
 
     transition(next, at) {
       const gap = at - this.lastAt;
@@ -49,18 +55,23 @@ globalThis.SiteClockCore = (() => {
       if (this.active && gap > 0 && gap <= MAX_GAP_MS) {
         added = gap;
         const host = this.active.hostname;
-        this.totals[host] = (this.totals[host] || 0) + added;
+        this.ledger.record(host, this.lastAt, at, this.lastOffset);
       }
       const changed = !sameActive(this.active, next);
       this.active = next;
       this.lastAt = at;
+      this.lastOffset = new Date(at).getTimezoneOffset();
       return { added, changed };
     }
 
     snapshot(host, tabId) {
+      const periods = this.periods();
       return {
         hostname: host,
-        totalMs: this.displayTotals()[host] || 0,
+        totalMs: periods.total[host] || 0,
+        todayMs: periods.today[host] || 0,
+        weekMs: periods.week[host] || 0,
+        day: SiteClockSync.localDay(this.lastAt),
         running: Boolean(this.active && this.active.tabId === tabId && this.active.hostname === host),
         asOf: this.lastAt,
         maxGapMs: MAX_GAP_MS
@@ -69,8 +80,8 @@ globalThis.SiteClockCore = (() => {
 
     serialize() {
       return {
-        version: 2, totals: { ...this.totals }, cloud: this.ledger.state, sessionId: this.sessionId,
-        active: this.active, lastAt: this.lastAt
+        version: 3, totals: { ...this.totals }, cloud: this.ledger.state, sessionId: this.sessionId,
+        active: this.active, lastAt: this.lastAt, lastOffset: this.lastOffset
       };
     }
   }

@@ -1,7 +1,7 @@
 # SiteClock
 
-A dependency-free Chrome extension that shows cumulative active browsing time in
-a small corner timer.
+A dependency-free Chrome extension that shows today, last 7 days, and lifetime
+active browsing time in a small corner timer and toolbar popup.
 
 ## Chrome Web Store submission
 
@@ -106,3 +106,14 @@ HTTP/HTTPS content script permission lets the timer appear automatically on
 websites. The extension does not inspect page text, collect full URLs in storage,
 or upload page contents. Optional backup uses configured AWS endpoints; Google
 sign-in uses Chrome’s `identity` API.
+
+## Calendar views (0.3.0)
+
+Today follows the local calendar date on the computer where usage is tracked.
+Last 7 days includes today and the six preceding dates. Travel and daylight saving
+changes do not rewrite previously assigned dates. Total includes all saved usage,
+including undated history from earlier versions; daily history starts at upgrade.
+Each daily counter and its cloud lifetime summary update in one transaction.
+The popup displays all three counters. The on-page timer shows Total by default;
+hover over it or focus it with the keyboard to reveal Today and Last 7 days. Reload the extension and
+refresh existing website tabs after upgrading the unpacked version.

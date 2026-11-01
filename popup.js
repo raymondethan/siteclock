@@ -29,10 +29,13 @@ async function refresh() {
       label.className = 'hostname';
       label.textContent = host;
       label.title = host;
-      const time = document.createElement('span');
-      time.className = 'duration';
-      time.textContent = SiteClockCore.formatTime(ms);
-      row.append(label, time);
+      row.append(label);
+      for (const value of [result.periods?.today[host] || 0, result.periods?.week[host] || 0, ms]) {
+        const time = document.createElement('span');
+        time.className = 'duration';
+        time.textContent = SiteClockCore.formatTime(value);
+        row.append(time);
+      }
       sites.append(row);
     }
   } catch (error) { sites.textContent = error.message; }

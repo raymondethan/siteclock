@@ -55,7 +55,7 @@ Disclose local processing as well as transmission; do not claim that the
 extension handles no user data just because it has no server.
 
 - **Web history / web browsing activity:** Yes. The extension processes tab URLs
-  to identify hostnames and retains hostname totals locally and uploads them to AWS only when backup is enabled. It does not retain
+  to identify hostnames and retains hostname totals and daily counters labeled by local calendar date locally and uploads them to AWS only when backup is enabled. It does not retain
   visited URL paths, query strings, or page titles.
 - **User activity:** Yes. The extension measures active browsing duration and
   uses window focus and Chrome's active/idle/locked state. It does not log

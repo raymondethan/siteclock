@@ -16,6 +16,11 @@ export function counter(value) {
   check(Number.isSafeInteger(value.totalMs) && value.totalMs >= 0, 'Invalid duration.');
   return { hostname: value.hostname, totalMs: value.totalMs };
 }
+export function date(value) {
+  check(typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
+    Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value, 'Invalid calendar date.');
+  return value;
+}
 export function createHandler(store) {
   return async event => {
     try {
@@ -43,15 +48,24 @@ export function createHandler(store) {
       } else if (method === 'PUT' && path === '/v1/usage') {
         uuid(body.generation); uuid(body.installationId);
         check(Array.isArray(body.counters) && body.counters.length > 0 && body.counters.length <= 50, 'Send between 1 and 50 counters.');
-        const counters = body.counters.map(counter);
-        check(new Set(counters.map(row => row.hostname)).size === counters.length, 'Duplicate hostnames.');
+        check(body.schemaVersion === undefined || body.schemaVersion === 2, 'Unsupported usage schema.');
+        const counters = body.counters.map(value => ({ ...counter(value),
+          ...(body.schemaVersion === 2 && value.day !== undefined ? { day: date(value.day) } : {}) }));
+        check(new Set(counters.map(row => `${row.day || "BASE"}/${row.hostname}`)).size === counters.length, 'Duplicate hostnames.');
         // Partial batches are intentional: the client retries absolute values safely.
-        for (const row of counters) await store.upload(accountId, body.generation, body.installationId, row);
+        for (const row of counters) await (body.schemaVersion === 2 ? store.uploadPeriod : store.upload).call(store, accountId, body.generation, body.installationId, row);
         result = { ok: true };
       } else if (method === 'GET' && path === '/v1/usage') {
         const generation = uuid(event.queryStringParameters?.generation);
         if (profile.generation !== generation) throw new HttpError(409, 'Cloud history changed.');
-        result = await store.usage(accountId, generation, event.queryStringParameters?.cursor);
+        const { from, to } = event.queryStringParameters || {};
+        let range;
+        if (from !== undefined || to !== undefined) {
+          date(from); date(to);
+          check(from <= to && Date.parse(to) - Date.parse(from) <= 366 * 86_400_000, 'Invalid date range.');
+          range = { from, to };
+        }
+        result = await store.usage(accountId, generation, event.queryStringParameters?.cursor, range);
         if ((await store.account(accountId)).generation !== generation) throw new HttpError(409, 'Cloud history changed.');
         result.generation = generation;
       } else if (method === 'DELETE' && path === '/v1/usage') {
