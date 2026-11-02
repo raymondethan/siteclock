@@ -23,9 +23,10 @@ website totals, sorted by time spent.
 - Uses local calendar dates. Earlier history appears in Total; daily history starts at upgrade.
 - Works locally without an account. Optional Google sign-in and cloud backup
   can combine your totals across computers. Backup is off by default per installation.
-- Choose encrypted backup with a recovery code, encryption limited to this Chrome
-  profile, or unencrypted backup. The recovery code is required to unlock names
-  on another computer. Dates and durations remain visible to the cloud service.
+- Choose encrypted backup with a recovery key (the default) or unencrypted
+  backup. Encrypted backup requires your recovery key to unlock names on another
+  computer. Dates and durations remain visible to the cloud service. Existing
+  accounts configured for profile-only encryption keep that protection setting.
 - Pause backup anytime, or separately delete cloud history. No ads or analytics.
 - Groups pages by hostname, ignoring a leading www. Other subdomains are separate.
 

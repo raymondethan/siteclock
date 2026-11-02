@@ -1,6 +1,6 @@
 # Client-side encryption investigation
 
-Status: hostname-only encryption and three cloud privacy modes are implemented in the 0.4.0 code, November 1, 2026. The development backend is deployed and synthetic Lambda/DynamoDB privacy checks pass. The implementation has received an internal code review; an independent cryptographic review and full production browser journey remain outstanding. Recovery-code encryption is the onboarding default, device-only encryption keeps its key in one Chrome profile, and plaintext backup is an explicit choice. Dates and durations remain readable in every mode. Existing plaintext history requires a local snapshot and explicit confirmation before cloud history is replaced.
+Status: hostname-only encryption and opt-in cloud backup are implemented in the 0.4.0 code, November 1, 2026. New backup setup offers recovery-key encryption by default or unencrypted backup. Accounts previously configured for profile-only encryption continue using that mode, but it is no longer offered for new setup. The development backend is deployed and synthetic Lambda/DynamoDB privacy checks pass. The implementation has received an internal code review; an independent cryptographic review and full production browser journey remain outstanding. Dates and durations remain readable in every mode. Existing plaintext history requires a local snapshot and explicit confirmation before cloud history is replaced.
 
 ## Goal and threat boundary
 

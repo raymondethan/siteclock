@@ -68,7 +68,7 @@ extension handles no user data just because it has no server.
 The current implementation supports the following statements:
 
 - Data is not sold. Google and AWS process data only for the requested sign-in and backup services.
-- Recovery-code mode encrypts hostnames before upload; the code is never sent to the service. Device-only mode encrypts hostnames with a key kept in that Chrome profile. Plaintext mode is an explicit user choice.
+- New backup setup offers encrypted backup with a recovery key (default) or unencrypted backup. Recovery keys are generated locally and are never sent to the service. Existing accounts configured for profile-only encryption continue to use a key kept in that Chrome profile; this mode is no longer offered for new setup.
 - Data is used only for the stated website-timing purpose.
 - Data is not used to assess creditworthiness or for lending.
 - Browsing data is not used for advertising or unrelated profiling.

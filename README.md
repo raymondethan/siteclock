@@ -45,14 +45,14 @@ Version-1 totals migrate locally without enabling backup or making network reque
 A separate `siteclockAuth` record holds trusted-context authentication tokens after
 sign-in. Active tab/session information stays local.
 
-Onboarding offers three cloud hostname modes. Recovery-code encryption is the
-recommended default and enables site-name matching across computers; the code
-must be saved because SiteClock cannot recover it. Device-only encryption keeps
-its key in one Chrome profile, so site names and matching site totals from other
-computers cannot be combined. Unencrypted backup keeps cross-computer site totals
-and lets the service read hostnames. Dates and durations remain readable in every
-mode. Existing plaintext history is migrated only after a local snapshot and an
-explicit confirmation.
+New backup setup offers encrypted hostname backup with a recovery key (the
+recommended default) or unencrypted backup. The recovery key must be saved because
+SiteClock cannot recover it; it lets installations on other computers match site
+names. Existing accounts configured for device-only encryption remain in that
+mode, but new setup no longer offers it. Unencrypted backup keeps cross-computer
+site totals and lets the service read hostnames. Dates and durations remain
+readable in every mode. Existing plaintext history is migrated only after a local
+snapshot and an explicit confirmation.
 
 Local mode requires no account. Open **Accounts & settings** from the popup to sign
 in with Google and explicitly enable cloud backup for this installation. Enabling

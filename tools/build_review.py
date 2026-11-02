@@ -68,9 +68,9 @@ def build():
         ('screenshots/02-on-page-timer-640x400.png', 'Compact live capture · 640 × 400'),
         ('screenshots/01-on-page-timer-1280x800.png', 'Full live capture · 1280 × 800'),
     ]
-    shots = ''.join(f'<figure class="card"><a href="{src}"><img src="{src}" alt="SiteClock timer on the public example domain"></a><figcaption>{label}. Actual capture; the timer is paused at zero on this new site. No personal browsing history is shown.</figcaption></figure>' for src,label in screenshots)
+    shots = ''.join(f'<figure class="card"><a href="{src}"><img src="{src}" alt="SiteClock timer on the public example domain"></a><figcaption>{label}. The current timer UI is composed with a neutral example.com page; the displayed total is sample data.</figcaption></figure>' for src,label in screenshots)
     gallery = '''
-    <span class="status">Release draft · store submission pending</span>
+    <span class="status">Submitted for review · approval pending</span>
     <h1>SiteClock</h1><p class="intro">A minimal website timer. Here are the package, artwork, and store copy.</p>
     <nav><a href="#artwork">Artwork</a><a href="#screenshots">Screenshots</a><a href="#copy">Listing copy</a><a href="#privacy">Privacy</a></nav>
     <div class="files"><a href="../dist/siteclock-0.3.0.zip">Release ZIP · v0.3.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
@@ -78,11 +78,11 @@ def build():
     <figure class="card"><img src="assets/icon-preview.png" alt="Browser-window clock icon on light and dark backgrounds"><figcaption>Browser outline + clock hands. Slate and mint. PNG sizes: 16, 32, 48, and 128 pixels. <a href="../icons/siteclock.svg">Editable SVG</a>.</figcaption></figure>
     <figure class="card"><a href="assets/promo-small-440x280.png"><img src="assets/promo-small-440x280.png" alt="SiteClock — Time spent on each website."></a><figcaption>Required small promotional tile · 440 × 280.</figcaption></figure>
     <figure class="card wide"><a href="assets/promo-marquee-1400x560.png"><img src="assets/promo-marquee-1400x560.png" alt="SiteClock — Time spent on each website. A small timer. A running total. Stored locally."></a><figcaption>Optional marquee · 1400 × 560.</figcaption></figure></div>
-    <h2 id="screenshots">Live screenshots</h2><p>Earlier local-only release on a neutral public page. Replace these actual captures with the current interface before publishing.</p><div class="grid">'''+shots+'''</div>
+    <h2 id="screenshots">Store screenshots</h2><p>Current SiteClock timer UI shown on a neutral public page. The example total is sample data and no account details or private browsing history are included.</p><div class="grid">'''+shots+'''</div>
     <h2 id="copy">Copy &amp; disclosures</h2><details open><summary>Store listing</summary>'''+markdown((ROOT/'store/listing.md').read_text())+'''</details>
     <details id="privacy"><summary>Privacy policy</summary>'''+policy+'''</details>
     <details><summary>Dashboard privacy answers</summary>'''+markdown((ROOT/'store/privacy-practices.md').read_text())+'''</details>
-    <p class="foot">The ZIP contains only production files and PNG icons. The policy is hosted in the public repository. The store submission is pending; see SUBMISSION.md for account and dashboard steps.</p>
+    <p class="foot">The ZIP contains only production files and PNG icons. The policy is hosted in the public repository. The owner reports the store submission is in review; see SUBMISSION.md for current release status.</p>
     '''
     version = json.loads((ROOT/'manifest.json').read_text())['version']
     gallery = gallery.replace('siteclock-0.3.0.zip', f'siteclock-{version}.zip').replace('v0.3.0', f'v{version}')

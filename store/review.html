@@ -13,7 +13,7 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 @media(max-width:700px){main{padding:32px 20px}.grid{grid-template-columns:1fr}h1{font-size:32px}.wide{grid-column:auto}}
 @media print{details>*{display:block!important}main{padding:0}.files,nav{display:none}.card{break-inside:avoid}}
 </style></head><body><main>
-    <span class="status">Release draft · store submission pending</span>
+    <span class="status">Submitted for review · approval pending</span>
     <h1>SiteClock</h1><p class="intro">A minimal website timer. Here are the package, artwork, and store copy.</p>
     <nav><a href="#artwork">Artwork</a><a href="#screenshots">Screenshots</a><a href="#copy">Listing copy</a><a href="#privacy">Privacy</a></nav>
     <div class="files"><a href="../dist/siteclock-0.4.0.zip">Release ZIP · v0.4.0</a><a href="listing.md">Listing source</a><a href="privacy-practices.md">Dashboard privacy fields</a><a href="privacy-policy.html">Standalone privacy policy</a></div>
@@ -21,7 +21,7 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
     <figure class="card"><img src="assets/icon-preview.png" alt="Browser-window clock icon on light and dark backgrounds"><figcaption>Browser outline + clock hands. Slate and mint. PNG sizes: 16, 32, 48, and 128 pixels. <a href="../icons/siteclock.svg">Editable SVG</a>.</figcaption></figure>
     <figure class="card"><a href="assets/promo-small-440x280.png"><img src="assets/promo-small-440x280.png" alt="SiteClock — Time spent on each website."></a><figcaption>Required small promotional tile · 440 × 280.</figcaption></figure>
     <figure class="card wide"><a href="assets/promo-marquee-1400x560.png"><img src="assets/promo-marquee-1400x560.png" alt="SiteClock — Time spent on each website. A small timer. A running total. Stored locally."></a><figcaption>Optional marquee · 1400 × 560.</figcaption></figure></div>
-    <h2 id="screenshots">Live screenshots</h2><p>Earlier local-only release on a neutral public page. Replace these actual captures with the current interface before publishing.</p><div class="grid"><figure class="card"><a href="screenshots/02-on-page-timer-640x400.png"><img src="screenshots/02-on-page-timer-640x400.png" alt="SiteClock timer on the public example domain"></a><figcaption>Compact live capture · 640 × 400. Actual capture; the timer is paused at zero on this new site. No personal browsing history is shown.</figcaption></figure><figure class="card"><a href="screenshots/01-on-page-timer-1280x800.png"><img src="screenshots/01-on-page-timer-1280x800.png" alt="SiteClock timer on the public example domain"></a><figcaption>Full live capture · 1280 × 800. Actual capture; the timer is paused at zero on this new site. No personal browsing history is shown.</figcaption></figure></div>
+    <h2 id="screenshots">Store screenshots</h2><p>Current SiteClock timer UI shown on a neutral public page. The example total is sample data and no account details or private browsing history are included.</p><div class="grid"><figure class="card"><a href="screenshots/02-on-page-timer-640x400.png"><img src="screenshots/02-on-page-timer-640x400.png" alt="SiteClock timer on the public example domain"></a><figcaption>Compact live capture · 640 × 400. The current timer UI is composed with a neutral example.com page; the displayed total is sample data.</figcaption></figure><figure class="card"><a href="screenshots/01-on-page-timer-1280x800.png"><img src="screenshots/01-on-page-timer-1280x800.png" alt="SiteClock timer on the public example domain"></a><figcaption>Full live capture · 1280 × 800. The current timer UI is composed with a neutral example.com page; the displayed total is sample data.</figcaption></figure></div>
     <h2 id="copy">Copy &amp; disclosures</h2><details open><summary>Store listing</summary><h1>Chrome Web Store listing draft</h1>
 <h2>Name</h2>
 <p>SiteClock</p>
@@ -36,7 +36,7 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <li>Shows Today, Last 7 days, and Total; lifetime totals persist across restarts.</li>
 <li>Uses local calendar dates. Earlier history appears in Total; daily history starts at upgrade.</li>
 <li>Works locally without an account. Optional Google sign-in and cloud backup can combine your totals across computers. Backup is off by default per installation.</li>
-<li>Choose encrypted backup with a recovery code, encryption limited to this Chrome profile, or unencrypted backup. The recovery code is required to unlock names on another computer. Dates and durations remain visible to the cloud service.</li>
+<li>Choose encrypted backup with a recovery key (the default) or unencrypted backup. Encrypted backup requires your recovery key to unlock names on another computer. Dates and durations remain visible to the cloud service. Existing accounts configured for profile-only encryption keep that protection setting.</li>
 <li>Pause backup anytime, or separately delete cloud history. No ads or analytics.</li>
 <li>Groups pages by hostname, ignoring a leading www. Other subdomains are separate.</li>
 </ul>
@@ -46,9 +46,9 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <ul>
 <li>Category: Productivity (choose the corresponding category in the dashboard).</li>
 <li>Language: English.</li>
-<li>Homepage: https://github.com/raymondethan/siteclock</li>
-<li>Support: https://github.com/raymondethan/siteclock/issues</li>
-<li>Privacy policy: https://github.com/raymondethan/siteclock/blob/master/PRIVACY.md</li>
+<li>Homepage: https://siteclock.dev</li>
+<li>Support: https://siteclock.dev/support.html</li>
+<li>Privacy policy: https://siteclock.dev/privacy.html</li>
 <li>Price: Free.</li>
 </ul>
 <h2>Store images</h2>
@@ -75,8 +75,8 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <p>After sign-in, the extension also stores SiteClock authentication tokens locally to maintain your session. These tokens and encryption keys are restricted to trusted extension contexts; they are not exposed to website content scripts. People or software with access to your Chrome profile may be able to access local data and keys. SiteClock does not encrypt local tracking data.</p>
 <h2>Accounts and optional cloud backup</h2>
 <p>You can choose Continue with Google to create or access your SiteClock account. Google handles your Google credentials; SiteClock never receives your Google password. Google and Amazon Cognito process the identity information needed for authentication, including your account identifier and email. SiteClock requests basic identity access, not access to Google browsing history.</p>
-<p>Signing in alone does not enable usage backup. During onboarding, choose one of three backup modes. <strong>Encrypted with a recovery code</strong> is the recommended default: the extension encrypts hostnames with AES-GCM and replaces them in database keys with account-scoped keyed identifiers. The recovery code is generated locally and is never sent to SiteClock; you need it to unlock names on another computer. If you lose the code and every installation that has the key, encrypted names cannot be recovered. <strong>Encrypted on this computer only</strong> keeps a random key in that Chrome profile; other computers cannot decrypt its names or combine matching site totals. <strong>Unencrypted</strong> stores readable hostnames and preserves cross-computer site totals. You can also use SiteClock locally without an account or cloud backup.</p>
-<p>Dates and durations remain readable by SiteClock&#x27;s backend and in the database in all three modes so the service can compute daily and lifetime totals. Encrypted modes hide hostname strings from ordinary database and backend access, but still expose account and installation identifiers, repeated opaque site identifiers within an account, dates, durations, and sync timing. This is hostname encryption, not anonymous or fully encrypted browsing history. The browser profile, extension code, and anyone who can access an unlocked profile remain trusted.</p>
+<p>Signing in alone does not enable usage backup. New backup setup offers two choices. <strong>Encrypted backup</strong> is the recommended default: the extension encrypts hostnames with AES-GCM and replaces them in database keys with account-scoped keyed identifiers. You can generate a new recovery key or enter one you already use. A generated recovery key is created locally and is never sent to SiteClock; use it to unlock names on another computer. If you lose the key and every installation that has it, encrypted names cannot be recovered. <strong>Unencrypted backup</strong> stores readable hostnames and preserves cross-computer site totals. You can also use SiteClock locally without an account or cloud backup. Existing accounts previously configured for profile-only encryption remain in that mode; it is no longer offered as a new setup choice.</p>
+<p>Dates and durations remain readable by SiteClock&#x27;s backend and in the database in every backup mode so the service can compute daily and lifetime totals. Encrypted modes hide hostname strings from ordinary database and backend access, but still expose account and installation identifiers, repeated opaque site identifiers within an account, dates, durations, and sync timing. This is hostname encryption, not anonymous or fully encrypted browsing history. The browser profile, extension code, and anyone who can access an unlocked profile remain trusted.</p>
 <p>When you enable backup, SiteClock uploads existing unassigned usage from this installation and subsequent cumulative usage. Previously assigned history stays separate between accounts. Encrypted accounts store keyed site identifiers and ciphertext; unencrypted accounts store hostnames. Daily counters remain labeled by local calendar date, and contributions combine without duplicate counting when the selected mode supports shared site identifiers.</p>
 <p>Backup uses Amazon Web Services: Cognito for authentication, API Gateway and Lambda for authenticated requests, and DynamoDB for stored usage. The current development deployment region is US East (Ohio); production deployment configuration determines its region. Hosting providers necessarily process connection and authentication metadata needed to operate the service. Application logs exclude hostnames, usage payloads, tokens, and full URLs; configured operational logs expire after 14 days.</p>
 <p>While backup is enabled, the extension normally uploads changes and refreshes totals about once a minute while Chrome runs, and at startup or when you open the popup. Timing is best-effort. Offline tracking continues locally; unsent changes upload when connectivity returns. A sudden failure or deletion of local storage before upload can lose recent unbacked-up time.</p>
@@ -128,13 +128,13 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <p>The current implementation supports the following statements:</p>
 <ul>
 <li>Data is not sold. Google and AWS process data only for the requested sign-in and backup services.</li>
-<li>Recovery-code mode encrypts hostnames before upload; the code is never sent to the service. Device-only mode encrypts hostnames with a key kept in that Chrome profile. Plaintext mode is an explicit user choice.</li>
+<li>New backup setup offers encrypted backup with a recovery key (default) or unencrypted backup. Recovery keys are generated locally and are never sent to the service. Existing accounts configured for profile-only encryption continue to use a key kept in that Chrome profile; this mode is no longer offered for new setup.</li>
 <li>Data is used only for the stated website-timing purpose.</li>
 <li>Data is not used to assess creditworthiness or for lending.</li>
 <li>Browsing data is not used for advertising or unrelated profiling.</li>
 </ul>
 <h2>Privacy policy URL</h2>
-<p>Use https://github.com/raymondethan/siteclock/blob/master/PRIVACY.md. The same policy is available as a standalone HTML source in <code>store/privacy-policy.html</code> if a dedicated hosted page is wanted later.</p>
+<p>Use https://siteclock.dev/privacy.html. The same policy is maintained in <code>PRIVACY.md</code> and <code>store/privacy-policy.html</code>.</p>
 <h2>References checked</h2>
 <ul>
 <li>https://developer.chrome.com/docs/webstore/cws-dashboard-privacy</li>
@@ -148,5 +148,5 @@ nav{display:flex;gap:20px;flex-wrap:wrap;margin:0 0 40px;font-size:14px}.foot{co
 <p>Access only the configured AWS API and Cognito origins from the background worker for sign-in, token refresh/revocation, and optional hostname-duration backup. The release configuration tool writes exact origins; no wildcard cloud hosts are needed.</p>
 <h2>Release controls</h2>
 <p>Backup defaults to off on each installation. Enabling includes existing unassigned totals with an explicit confirmation. Pausing stops usage uploads/downloads and preserves the cloud copy; deletion removes cloud history and prevents stale installations from re-uploading it automatically. Account identity remains after usage deletion. See the policy for retention and account identity deletion requests.</p></details>
-    <p class="foot">The ZIP contains only production files and PNG icons. The policy is hosted in the public repository. The store submission is pending; see SUBMISSION.md for account and dashboard steps.</p>
+    <p class="foot">The ZIP contains only production files and PNG icons. The policy is hosted in the public repository. The owner reports the store submission is in review; see SUBMISSION.md for current release status.</p>
     </main></body></html>

@@ -60,18 +60,18 @@ Generated ZIPs and checksums are in ignored `dist/`. Artwork and copy can be
 committed. Any screenshot originals containing personal browser chrome must
 remain outside the repository.
 
-## Before submitting
+## Review status
 
-The public privacy-policy URL is listed in `SUBMISSION.md`. Complete the developer
-account and dashboard fields before submitting. Review is still required by Google; these
-files do not imply approval. Switching from an unpacked extension to the store
+The public privacy-policy URL is listed in `SUBMISSION.md`. The owner reports that the production package, refreshed screenshots, and privacy disclosures have been submitted to the Chrome Web Store. Review is still required by Google; these files do not imply approval. Switching from an unpacked extension to the store
 installation may require migrating existing local totals; that feature is not
 included in this packaging work.
 
 ## Version 0.4 cloud release
 
-Accounts, optional cloud backup, and three hostname privacy modes are implemented.
+Accounts, optional cloud backup, and hostname encryption are implemented. New
+backup setup offers encrypted backup with a recovery key or unencrypted backup;
+previously configured profile-only accounts remain supported.
 The production package is configured for the production stack and existing store
 extension ID. Complete the fresh-profile checks in `SUBMISSION.md`. Existing
-promotional screenshots show the earlier local interface and must be refreshed
-before publishing this release.
+local screenshot assets have been refreshed to show the current timer overlay;
+the owner reports they have been uploaded to the Chrome Web Store listing for review.
