@@ -7,11 +7,11 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header><span class="mark" aria-hidden="true">◷</span><h1>SiteClock</h1><span class="local" id="mode">LOCAL</span></header>
+  <header><span class="mark" aria-hidden="true">◷</span><h1>SiteClock</h1><span class="local" id="mode">LOCAL ONLY</span></header>
   <p class="intro">Your time, across every visit.</p>
   <div class="columns" aria-hidden="true"><span>Website</span><span>Today</span><span>Last 7 days</span><span>Total</span></div>
   <section id="sites" aria-label="Website totals"><p class="empty">Loading your totals…</p></section>
-  <footer>Local calendar dates · Today + previous 6 days<br>Earlier history is included in Total only<br>Active browsing only · Pauses after 30 minutes idle<br><span id="sync-status">Saved on this computer.</span><br><button id="settings">Accounts &amp; settings</button></footer>
+  <footer>Local calendar dates · Today + previous 6 days<br>Earlier history is included in Total only<br>Active browsing only · Pauses after 30 minutes idle<br><span id="sync-status">Saved on this computer.</span><br><button id="backup-cta" hidden>Back up across devices</button><br><button id="settings">Accounts &amp; settings</button></footer>
   <script src="core.js"></script>
   <script src="popup.js"></script>
 </body>

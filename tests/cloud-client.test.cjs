@@ -52,6 +52,7 @@ test('Google sign-in verifies PKCE, state, identity and uses only basic identity
   assert.equal(result.email, 'person@example.test');
   assert.equal(e.local.siteclockAuth.accountId, accountId);
   assert.equal(e.authURL().searchParams.get('identity_provider'), 'Google');
+  assert.equal(e.authURL().searchParams.get('prompt'), 'select_account');
   assert.equal(e.authURL().searchParams.get('scope'), 'openid email');
   assert.equal(e.authURL().searchParams.get('response_type'), 'code');
   assert.equal(e.authURL().searchParams.has('client_secret'), false);

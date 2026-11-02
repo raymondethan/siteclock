@@ -61,7 +61,7 @@ globalThis.SiteClockCloud = (() => {
     const redirect = chrome.identity.getRedirectURL('oauth2');
     const url = new URL(`${config.authBase}/oauth2/authorize`);
     url.search = new URLSearchParams({ client_id: config.clientId, response_type: 'code', redirect_uri: redirect,
-      scope: 'openid email', identity_provider: 'Google', state, code_challenge: challenge, code_challenge_method: 'S256' });
+      scope: 'openid email', identity_provider: 'Google', prompt: 'select_account', state, code_challenge: challenge, code_challenge_method: 'S256' });
     // Persist PKCE state in storage.session: MV3 can recreate the worker during interactive login.
     await chrome.storage.session.set({ siteclockOAuth: { verifier, state, redirect } });
     try {

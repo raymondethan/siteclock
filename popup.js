@@ -4,7 +4,8 @@ async function refresh() {
   try {
     const result = await chrome.runtime.sendMessage({ type: 'siteclock:summary' });
     if (!result || result.error) throw new Error(result?.error || 'Could not load totals.');
-    document.getElementById('mode').textContent = result.cloud?.enabled ? 'ACCOUNT' : 'LOCAL';
+    document.getElementById('mode').textContent = result.cloud?.enabled ? 'CLOUD BACKUP' : 'LOCAL ONLY';
+    document.getElementById('backup-cta').hidden = Boolean(result.cloud?.enabled) || !result.cloud?.configured;
     document.getElementById('sync-status').textContent = result.cloud?.enabled
       ? (result.cloud.error || (result.cloud.lastSync ? 'Across installations · Synced ' + new Date(result.cloud.lastSync).toLocaleTimeString() : 'Across installations · Waiting for sync'))
       : 'Saved on this computer.';
@@ -45,5 +46,6 @@ void refresh();
 setInterval(refresh, 10_000);
 
 document.getElementById('settings').addEventListener('click', () => chrome.runtime.openOptionsPage());
+document.getElementById('backup-cta').addEventListener('click', () => chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html#cloud-backup') }));
 
 void chrome.runtime.sendMessage({ type: 'siteclock:cloud:sync' }).catch(() => {});

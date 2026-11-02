@@ -1,19 +1,56 @@
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SiteClock settings</title><link rel="stylesheet" href="options.css"></head>
-<body><main>
+<body class="settings-page"><main>
 <header><h1>SiteClock</h1><p>Accounts and cloud backup</p></header>
 <section aria-labelledby="backup-heading">
-<h2 id="backup-heading">Keep your time across computers</h2>
-<p id="backupIntro">Sign in with the same Google account on each computer to back up your website totals. Recovery-code and unencrypted modes combine site totals; device-only mode keeps names separate to each Chrome profile.</p>
+<h2 id="backup-heading">Cloud backup</h2>
+<p id="backupIntro">Sign in to choose how your website names are backed up.</p>
 <p id="account">Checking account…</p>
-<button id="signin">Continue with Google</button><button id="signout" hidden>Sign out</button>
-<div class="control"><label><input id="backup" type="checkbox" disabled> Cloud backup</label></div>
-<p class="muted">Off by default for each installation. Enabling uploads this installation’s existing, unassigned website totals. While paused, new usage stays local and catches up when re-enabled. Previously assigned account history stays separate.</p>
+<p id="authState" class="auth-state idle" role="status" aria-live="polite">Checking your Google account…</p>
+<p id="encryptionStatus" class="encryption-status" hidden></p>
+<button id="signin">Sign in with Google</button><button id="signout" hidden>Sign out</button>
+<div id="backupSetup" hidden>
+  <h3>Choose your backup protection</h3>
+  <p class="muted">Cloud backup starts only after you choose a protection option and continue.</p>
+  <fieldset id="backupChoices" class="backup-choices"><legend>How should SiteClock protect website names?</legend>
+    <label class="backup-option"><input type="radio" name="backupMode" value="recovery" checked><span><strong>Encrypted backup</strong><small>Recommended. Website names are encrypted in this browser. Use a recovery key on your other computers to unlock and combine totals.</small></span></label>
+    <div id="keyOptions">
+      <p class="muted">Choose a recovery key:</p>
+      <label class="key-choice"><input type="radio" name="keyAction" value="generate" checked> Generate a new key</label>
+      <label class="key-choice"><input type="radio" name="keyAction" value="use"> Use an existing key</label>
+      <div id="recoveryInputRow" hidden><label for="recoveryCode">Existing recovery key</label><input id="recoveryCode" autocomplete="off" spellcheck="false" placeholder="Paste your recovery key"></div>
+    </div>
+    <label class="backup-option"><input type="radio" name="backupMode" value="unencrypted"><span><strong>Unencrypted backup</strong><small>Website names are readable by the service and its operators. Totals can be combined across computers without a key.</small></span></label>
+  </fieldset>
+  <label class="consent-check"><input id="backupConsent" type="checkbox"> I agree to back up website names, local dates, and time totals to my SiteClock account.</label>
+  <p class="muted">Full URLs, page contents, and active-tab information are never uploaded. You can pause or delete cloud backup in settings.</p>
+  <button id="enableBackup" class="primary-action" disabled>Continue with encrypted backup</button>
+</div>
+<div id="backupActive" hidden>
+  <p id="privacyMode" class="privacy-summary"></p>
+  <p class="muted">Backup is off by default for each installation. While paused, new usage stays local and catches up when you resume. Previously assigned account history stays separate.</p>
+  <button id="backupToggle" class="secondary-action">Pause cloud backup</button>
+</div>
+<section id="recoveryPanel" hidden aria-live="polite">
+  <h3 id="recoveryHeading">Save your recovery key</h3>
+  <p id="recoveryInstructions">This key is the only way to unlock encrypted website names on another computer. SiteClock cannot recover it.</p>
+  <code id="newRecoveryCode"></code>
+  <label id="savedCodeLabel" class="consent-check"><input id="savedCode" type="checkbox"> I saved this recovery key somewhere safe.</label>
+  <label id="migrationConsentRow" class="consent-check" hidden><input id="migrationConsent" type="checkbox"> I understand that continuing will replace the existing cloud history using my selected protection option.</label>
+  <button id="confirmRecoveryCode" class="primary-action" disabled>Confirm and enable backup</button>
+</section>
 <p class="muted">Only hostnames, local calendar dates, and cumulative durations are backed up. Active tabs, page contents, and full URLs stay off the server. The extension never receives your Google password.</p>
-<p id="privacyMode" class="muted"></p><p><a href="welcome.html">Choose or review hostname privacy options</a></p>
 <p id="status" role="status" aria-live="polite"></p>
 <button id="retry" hidden>Sync now</button>
+</section>
+<section id="backfillPanel" aria-labelledby="backfill-heading" hidden>
+<p class="eyebrow">RESTORE</p><h2 id="backfill-heading">Previous website totals found</h2>
+<p id="backfillSummary">Previous totals from this Chrome profile can be copied into your production account. The source history stays on this computer.</p>
+<label for="backfillSource">Previous account history</label>
+<select id="backfillSource"></select>
+<p class="muted">Imported website names are encrypted using this account’s selected privacy mode before they sync.</p>
+<button id="backfill">Import previous totals</button>
 </section>
 <section aria-labelledby="delete-heading"><h2 id="delete-heading">Delete cloud history</h2>
 <p>This deletes usage across all installations and pauses backup. Your account remains. Existing local contributions are kept locally and will not automatically upload again. Other installations pause when they next connect.</p>

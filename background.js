@@ -218,7 +218,8 @@ function cloudStatus() {
   const account = tracker.ledger.account;
   return { configured: SiteClockCloud.configured, environment: SiteClockCloud.environment, signedIn: Boolean(account), email: account?.email,
     enabled: Boolean(account?.enabled), privacyMode: account?.privacyMode || null, lastSync: account?.lastSync, error: account?.error,
-    syncing: Boolean(syncing), localOnly: Boolean(account && Object.keys(account.localOnly).length) };
+    syncing: Boolean(syncing), localOnly: Boolean(account && Object.keys(account.localOnly).length),
+    backfillSources: tracker.ledger.availableBackfills() };
 }
 
 const keyStorageName = (accountId, installationId, mode) => `siteclockHostnameKey:${accountId}:${mode === 'device' ? installationId : 'account'}`;
@@ -451,8 +452,8 @@ function syncCloud(force = false) {
   syncing = (async () => {
     const at = Date.now();
     const captured = await queue.push(async () => {
-      if (controlling || !initialized || !tracker.ledger.account?.enabled || tracker.ledger.account.privacyMode === 'migrating') return null;
       const a = tracker.ledger.account;
+      if (controlling || !initialized || !a?.enabled || a.reauthRequired || a.privacyMode === 'migrating') return null;
       if (!force && (at < a.retryAt || (a.lastSync && at - a.lastSync < 60_000))) return null;
       tracker.transition(currentActive(), at);
       await save();
@@ -537,7 +538,7 @@ function syncCloud(force = false) {
         a.failures++;
         a.retryAt = Date.now() + Math.min(30 * 60_000, 60_000 * 2 ** Math.min(a.failures - 1, 5)) * (0.75 + Math.random() * 0.5);
         a.error = error.status === 429 ? 'Cloud backup limit reached. Local tracking continues; contact support or check your account settings.' : error.status === 426 ? 'Update SiteClock to resume backup.' : error.status === 401 ? 'Sign in again to resume backup.' : 'Could not sync. Local tracking continues; backup will retry.';
-        if (error.status === 401) a.enabled = false;
+        if (error.status === 401) a.reauthRequired = true;
       });
     }
   })().catch(report).finally(() => { syncing = null; });
@@ -554,6 +555,7 @@ function controlCloud(message) {
     controlling = true;
     syncRevision++;
     let recoveryCode;
+    let backfilled;
     let awaitingRecoveryAcknowledgement = false;
     let awaitingMigrationConfirmation = false;
     try {
@@ -561,10 +563,19 @@ function controlCloud(message) {
       if (action === 'signin' || action === 'signin-enable') {
         const account = await SiteClockCloud.signIn();
         await mutateCloud(ledger => {
+          const previous = ledger.state.accounts[account.accountId];
+          const hadOptedIn = Boolean(previous && (previous.enabled || previous.reauthRequired || previous.error === 'Sign in again to resume backup.'));
           if (ledger.state.accountId !== account.accountId) ledger.pause();
           ledger.signIn(account.accountId, account.email);
-          ledger.generation(account.generation);
+          const generationMatches = ledger.generation(account.generation);
           if (account.privacyMode) { ledger.account.privacyMode = account.privacyMode; ledger.account.keyId = account.keyId || null; }
+          if (action === 'signin' && hadOptedIn && generationMatches) {
+            ledger.account.enabled = true;
+            ledger.account.reauthRequired = false;
+            ledger.account.error = null;
+            ledger.account.failures = 0;
+            ledger.account.retryAt = 0;
+          }
         });
         if (action === 'signin-enable') {
           const id = tracker.ledger.state.accountId;
@@ -623,8 +634,8 @@ function controlCloud(message) {
         const switchingFromPlaintext = account.privacyMode === 'unencrypted' && message.privacyMode && message.privacyMode !== 'unencrypted';
         const mode = account.privacyMode && account.privacyMode !== 'migrating' && !switchingFromPlaintext ? account.privacyMode : account.pendingPrivacyMode || message.privacyMode || 'recovery';
         const installationId = tracker.ledger.state.installationId;
-        if (!account.privacyMode && !account.legacyData) throw Error('Start backup from the welcome page to choose a privacy setting and save your recovery code.');
-        if (account.legacyData && (!account.privacyMode || account.privacyMode === 'migrating' || switchingFromPlaintext) && ['recovery', 'device'].includes(mode)) {
+        const settingUpPrivacy = !account.privacyMode || account.privacyMode === 'migrating' || switchingFromPlaintext;
+        if (account.legacyData && settingUpPrivacy && ['recovery', 'device'].includes(mode)) {
           if (!message.confirmMigration) throw Error('Confirm the local migration before replacing the existing unencrypted cloud history.');
           if (mode === 'recovery') {
             let key = await loadHostnameKey(id, installationId, mode);
@@ -637,13 +648,31 @@ function controlCloud(message) {
             await saveHostnameKey(id, installationId, mode, SiteClockHostnameCrypto.generateSecret());
           }
           await migrateLegacyHistory(account, mode);
-        } else {
-          if (!account.privacyMode) {
-            let keyId = mode === 'recovery' ? tracker.ledger.account.keyId : undefined;
-            if (mode === 'recovery' && !keyId) { keyId = crypto.randomUUID(); await mutateCloud(ledger => { ledger.account.keyId = keyId; }); }
-            const configured = await SiteClockCloud.api('/v1/privacy', 'PUT', { generation: account.generation, privacyMode: mode, ...(keyId ? { keyId } : {}) }, id);
-            account.privacyMode = configured.privacyMode; account.keyId = configured.keyId;
+        } else if (settingUpPrivacy) {
+          let key = mode === 'recovery' ? await loadHostnameKey(id, installationId, mode) : null;
+          if (mode === 'recovery' && !key) {
+            if (message.recoveryCode) key = await saveHostnameKey(id, installationId, mode, message.recoveryCode, true);
+            else if (message.generateRecoveryCode) {
+              recoveryCode = SiteClockHostnameCrypto.generateSecret();
+              key = await saveHostnameKey(id, installationId, mode, recoveryCode, false);
+              awaitingRecoveryAcknowledgement = true;
+            } else throw Error('Choose whether to use an existing recovery key or generate a new one.');
+          } else if (mode === 'recovery' && !key.confirmed) {
+            recoveryCode = key.secret;
+            awaitingRecoveryAcknowledgement = true;
           }
+          if (mode === 'recovery' && !tracker.ledger.account.keyId) {
+            await mutateCloud(ledger => { ledger.account.keyId = key.keyId; });
+          }
+          if (mode === 'device' && !await loadHostnameKey(id, installationId, mode)) {
+            await saveHostnameKey(id, installationId, mode, SiteClockHostnameCrypto.generateSecret());
+          }
+          const keyId = mode === 'recovery' ? key.keyId : undefined;
+          const configured = await SiteClockCloud.api('/v1/privacy', 'PUT',
+            { generation: account.generation, privacyMode: mode, ...(keyId ? { keyId } : {}) }, id);
+          account.privacyMode = configured.privacyMode; account.keyId = configured.keyId || keyId;
+          await mutateCloud(ledger => { ledger.account.privacyMode = account.privacyMode; ledger.account.keyId = account.keyId || null; });
+        } else {
           if (mode === 'recovery' && !await loadHostnameKey(id, installationId, mode)) {
             if (!message.recoveryCode) throw Error('Enter your recovery code to unlock the cloud website names.');
             await saveHostnameKey(id, installationId, mode, message.recoveryCode, true);
@@ -651,14 +680,20 @@ function controlCloud(message) {
           if (mode === 'device' && !await loadHostnameKey(id, installationId, mode)) await saveHostnameKey(id, installationId, mode, SiteClockHostnameCrypto.generateSecret());
           await mutateCloud(ledger => { ledger.account.privacyMode = account.privacyMode; ledger.account.keyId = account.keyId || null; });
         }
-        if (mode === 'recovery') {
+        if (mode === 'recovery' && !awaitingRecoveryAcknowledgement) {
           const key = await loadHostnameKey(id, tracker.ledger.state.installationId, 'recovery');
           if (!key?.confirmed && !message.savedRecoveryCode) throw Error('Save and confirm the recovery code before enabling backup.');
           if (!key.confirmed) await saveHostnameKey(id, tracker.ledger.state.installationId, 'recovery', key.secret, true);
         }
-        if (!account.legacyData || account.privacyMode || mode === 'unencrypted') await mutateCloud(ledger => ledger.enable(tracker.ledger.account.generation));
+        if (!awaitingRecoveryAcknowledgement && !awaitingMigrationConfirmation && (!account.legacyData || account.privacyMode || mode === 'unencrypted')) {
+          await mutateCloud(ledger => ledger.enable(tracker.ledger.account.generation));
+        }
       } else if (action === 'pause') {
         await mutateCloud(ledger => ledger.pause());
+      } else if (action === 'backfill') {
+        const account = tracker.ledger.account;
+        if (!account?.enabled || !account.privacyMode) throw Error('Enable cloud backup before importing previous totals.');
+        backfilled = await mutateCloud(ledger => ledger.backfill(message.sourceAccountId));
       } else if (action === 'cancel-migration') {
         const id = tracker.ledger.state.accountId;
         if (!id) throw Error('Sign in first.');
@@ -685,8 +720,9 @@ function controlCloud(message) {
         await mutateCloud(ledger => ledger.generation(result.generation));
       } else if (action !== 'retry') throw Error('Unknown cloud action.');
     } finally { controlling = false; }
-    if (['enable', 'retry', 'signin-enable', 'cancel-migration'].includes(action) && !awaitingRecoveryAcknowledgement && !awaitingMigrationConfirmation) await syncCloud(true);
+    if (['signin', 'enable', 'retry', 'signin-enable', 'backfill', 'cancel-migration'].includes(action) && !awaitingRecoveryAcknowledgement && !awaitingMigrationConfirmation) await syncCloud(true);
     return { ...await queue.push(() => cloudStatus()), ...(recoveryCode ? { recoveryCode } : {}),
+      ...(backfilled ? { backfilled } : {}),
       ...(awaitingRecoveryAcknowledgement ? { awaitingRecoveryAcknowledgement } : {}), ...(awaitingMigrationConfirmation ? { awaitingMigrationConfirmation } : {}) };
   });
   controlTail = task.catch(() => {});

@@ -1,14 +1,19 @@
-const ids = ['local', 'consent', 'backup', 'status', 'retry', 'browse', 'privacyChoices', 'recoveryCode', 'recoveryPanel', 'newRecoveryCode', 'savedCode', 'savedCodeLabel', 'migrationConsent', 'migrationConsentRow', 'recoveryHeading', 'recoveryInstructions', 'enableAfterRecovery', 'cancelMigration'];
+const ids = ['local', 'consent', 'backup', 'status', 'retry', 'browse', 'privacyChoices', 'keyOptions', 'existingCodeDetails', 'recoveryCode', 'recoveryPanel', 'newRecoveryCode', 'savedCode', 'savedCodeLabel', 'migrationConsent', 'migrationConsentRow', 'recoveryHeading', 'recoveryInstructions', 'enableAfterRecovery', 'cancelMigration'];
 const elements = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
 let busy = false;
 let state;
 function mode() { return document.querySelector('input[name="privacyMode"]:checked')?.value || 'recovery'; }
+function keyAction() { return document.querySelector('input[name="keyAction"]:checked')?.value || 'generate'; }
 function render() {
   elements.local.disabled = busy;
   elements.consent.disabled = busy;
-  elements.backup.disabled = busy || !state?.configured || !elements.consent.checked || !elements.recoveryPanel.hidden;
-  for (const choice of elements.privacyChoices.querySelectorAll('input')) choice.disabled = busy || Boolean(state?.privacyMode && state.privacyMode !== 'unencrypted') || !elements.recoveryPanel.hidden;
-  elements.recoveryCode.disabled = busy;
+  elements.backup.disabled = busy || !state?.configured || !elements.consent.checked || !elements.recoveryPanel.hidden ||
+    (mode() === 'recovery' && keyAction() === 'use' && !elements.recoveryCode.value.trim());
+  for (const choice of document.querySelectorAll('input[name="privacyMode"], input[name="keyAction"]')) choice.disabled = busy || Boolean(state?.privacyMode && state.privacyMode !== 'unencrypted') || !elements.recoveryPanel.hidden;
+  const encrypted = mode() === 'recovery';
+  elements.keyOptions.hidden = !encrypted;
+  elements.existingCodeDetails.hidden = !encrypted || keyAction() !== 'use';
+  elements.recoveryCode.disabled = busy || elements.existingCodeDetails.hidden;
   elements.savedCode.disabled = busy;
   elements.enableAfterRecovery.disabled = busy || !elements.consent.checked || (!elements.savedCodeLabel.hidden && !elements.savedCode.checked) || (!elements.migrationConsentRow.hidden && !elements.migrationConsent.checked);
   elements.retry.disabled = busy;
@@ -16,6 +21,7 @@ function render() {
 }
 async function send(action) {
   const result = await chrome.runtime.sendMessage({ type: `siteclock:cloud:${action}`, privacyMode: mode(),
+    ...(mode() === 'recovery' && keyAction() === 'generate' ? { generateRecoveryCode: true } : {}),
     recoveryCode: elements.recoveryCode.value.trim(), savedRecoveryCode: elements.savedCode.checked, confirmMigration: elements.migrationConsent.checked });
   if (!result || result.error) throw Error(result?.error || 'SiteClock is reconnecting. Reload this page.');
   return result;
@@ -70,12 +76,17 @@ async function act(action) {
       elements.browse.hidden = false; elements.retry.hidden = true;
     } else describe();
   } catch (error) {
-    elements.status.textContent = `${error.message} You can still use SiteClock on this computer.`;
+    if (/recovery code.*unlock|enter your recovery code/i.test(error.message)) {
+      elements.existingCodeDetails.hidden = false;
+      elements.status.textContent = 'This account already has encrypted history. Enter its recovery code above to unlock it. You can still use SiteClock on this computer.';
+    } else elements.status.textContent = `${error.message} You can still use SiteClock on this computer.`;
     elements.browse.hidden = false;
   } finally { busy = false; render(); }
 }
 elements.local.addEventListener('click', () => act('pause'));
 elements.consent.addEventListener('change', render);
+for (const choice of document.querySelectorAll('input[name="privacyMode"], input[name="keyAction"]')) choice.addEventListener('change', render);
+elements.recoveryCode.addEventListener('input', render);
 elements.backup.addEventListener('click', () => act('signin-enable'));
 elements.savedCode.addEventListener('change', render);
 elements.migrationConsent.addEventListener('change', render);

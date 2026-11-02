@@ -54,6 +54,32 @@ test('account switching and repeated import never transfer assigned history', ()
   assert.equal(l.account.local['example.com'], 20);
   assert.equal(l.account.local['signedout.test'], undefined);
 });
+test('explicit history backfill combines prior local and remote counters once and preserves its source', () => {
+  const l = ledger(a); l.signIn(a, 'same@example.test'); l.enable(g);
+  l.account.local = { 'example.com': 100, 'legacy.test': 25 };
+  l.account.daily = { '2026-10-30': { 'example.com': 60 } };
+  l.account.localOnly = { 'example.com': 10 };
+  l.account.localOnlyDaily = { '2026-10-30': { 'example.com': 5 } };
+  l.account.remote = { [b]: { 'example.com': 300 } };
+  l.account.remoteDaily = { [b]: { '2026-10-30': { 'example.com': 120 } } };
+  const sourceSnapshot = JSON.stringify(l.account);
+  l.signIn(b, 'same@example.test'); l.enable(g2);
+  l.account.local['example.com'] = 7;
+  assert.deepEqual(l.availableBackfills(), [{ sourceAccountId: a, email: 'same@example.test', siteCount: 2, totalMs: 435, dayCount: 1 }]);
+  assert.deepEqual(l.backfill(a), { siteCount: 2, totalMs: 435, dayCount: 1 });
+  assert.equal(l.account.local['example.com'], 417);
+  assert.equal(l.account.local['legacy.test'], 25);
+  assert.equal(l.account.daily['2026-10-30']['example.com'], 185);
+  assert.equal(JSON.stringify(l.state.accounts[a]), sourceSnapshot);
+  assert.deepEqual(l.availableBackfills(), []);
+  assert.throws(() => l.backfill(a), /already imported/);
+});
+test('history backfill only offers prior accounts with the same email', () => {
+  const l = ledger(a); l.signIn(a, 'current@example.test'); l.enable(g);
+  l.signIn(b, 'other@example.test'); l.enable(g2); l.account.local['private.test'] = 100;
+  l.signIn(a, 'current@example.test');
+  assert.deepEqual(l.availableBackfills(), []);
+});
 test('deletion retires local counters, invalidates caches, and requires fresh opt-in', () => {
   const l = ledger(); enable(l); l.account.local['example.com'] = 20;
   l.merge([{ installationId: b, hostname: 'example.com', totalMs: 10 }]);
@@ -122,6 +148,82 @@ test('worker paginates, displays account totals and does not upload downloads', 
   const uploads = e.cloud.calls.filter(call => call.method === 'PUT' && call.url === '/v1/usage');
   assert.equal(uploads.at(-1).body.counters[0].totalMs, 5000);
   assert.ok(uploads.every(call => call.expectedAccount === a));
+});
+test('worker backfills a prior same-email account once and syncs the imported totals', async () => {
+  const e = await worker();
+  await control(e, 'enable');
+  const l = e.worker.ledger();
+  l.signIn(a, 'a@example.test');
+  l.account.local = { 'current.test': 11 };
+  l.signIn(b, 'a@example.test');
+  l.enable(g2);
+  l.account.local = { 'old.test': 20 };
+  l.account.daily = { '2026-10-30': { 'old.test': 20 } };
+  l.signIn(a, 'a@example.test');
+  const sourceBefore = JSON.stringify(l.state.accounts[b]);
+  const result = await e.worker.controlCloud({ type: 'siteclock:cloud:backfill', sourceAccountId: b });
+  assert.deepEqual(result.backfilled, { siteCount: 1, totalMs: 20, dayCount: 1 });
+  assert.equal(l.account.local['old.test'], 20);
+  assert.equal(JSON.stringify(l.state.accounts[b]), sourceBefore);
+  const uploads = e.cloud.calls.filter(call => call.method === 'PUT' && call.url === '/v1/usage');
+  assert.equal(uploads.length, 1);
+  assert.equal(uploads[0].body.counters.length, 2);
+  assert.equal(uploads[0].expectedAccount, a);
+  await assert.rejects(e.worker.controlCloud({ type: 'siteclock:cloud:backfill', sourceAccountId: b }), /already imported/);
+});
+test('reauthentication resumes an opted-in backup, while an explicit pause remains off', async () => {
+  const e = await worker();
+  await control(e, 'enable');
+  const l = e.worker.ledger();
+  l.account.local['example.com'] = 9000;
+  const expired = Error('Sign in again to resume backup.'); expired.status = 401;
+  e.cloud.intercept = async url => { if (url === '/v1/account') throw expired; };
+  await e.worker.syncCloud(true);
+  assert.equal(l.account.enabled, true);
+  assert.equal(l.account.reauthRequired, true);
+  assert.equal(l.account.error, 'Sign in again to resume backup.');
+  const blockedCallCount = e.cloud.calls.length;
+  await e.worker.syncCloud(true);
+  assert.equal(e.cloud.calls.length, blockedCallCount);
+
+  e.cloud.intercept = null;
+  const reconnected = await e.worker.controlCloud({ type: 'siteclock:cloud:signin' });
+  assert.equal(reconnected.enabled, true);
+  assert.equal(l.account.reauthRequired, false);
+  assert.equal(l.account.error, null);
+  assert.ok(e.cloud.calls.length > blockedCallCount);
+
+  e.cloud.intercept = async url => { if (url === '/v1/account') throw expired; };
+  await e.worker.syncCloud(true);
+  await control(e, 'pause');
+  assert.equal(l.account.enabled, false);
+  assert.equal(l.account.reauthRequired, false);
+  assert.equal(l.account.error, null);
+  e.cloud.intercept = null;
+  const afterPause = e.cloud.calls.length;
+  await e.worker.controlCloud({ type: 'siteclock:cloud:signin' });
+  assert.equal(l.account.enabled, false);
+  assert.equal(e.cloud.calls.length, afterPause);
+});
+test('encrypted backup asks to save a generated recovery key before enabling, while unencrypted backup continues directly', async () => {
+  const encryptedCloud = fakeCloud(); encryptedCloud.privacyMode = undefined;
+  const encrypted = await worker(encryptedCloud);
+  const setup = await encrypted.worker.controlCloud({ type: 'siteclock:cloud:enable', privacyMode: 'recovery', generateRecoveryCode: true });
+  assert.equal(setup.awaitingRecoveryAcknowledgement, true);
+  assert.ok(setup.recoveryCode);
+  assert.equal(setup.enabled, false);
+  assert.equal(encryptedCloud.calls.some(call => call.method === 'PUT' && call.url === '/v1/usage'), false);
+  const saved = await encrypted.worker.controlCloud({ type: 'siteclock:cloud:enable', privacyMode: 'recovery',
+    recoveryCode: setup.recoveryCode, savedRecoveryCode: true });
+  assert.equal(saved.enabled, true);
+  assert.equal(saved.privacyMode, 'recovery');
+
+  const plaintextCloud = fakeCloud(); plaintextCloud.privacyMode = undefined;
+  const plaintext = await worker(plaintextCloud);
+  const enabled = await plaintext.worker.controlCloud({ type: 'siteclock:cloud:enable', privacyMode: 'unencrypted' });
+  assert.equal(enabled.enabled, true);
+  assert.equal(enabled.privacyMode, 'unencrypted');
+  assert.equal(plaintextCloud.calls.some(call => call.url === '/v1/privacy' && call.method === 'PUT' && call.body.privacyMode === 'unencrypted'), true);
 });
 test('worker preserves tracking while upload is in flight and retries network failures', async () => {
   const e = await worker(); await control(e, 'enable');

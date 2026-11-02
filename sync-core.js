@@ -12,6 +12,13 @@ globalThis.SiteClockSync = (() => {
     for (const [day, hosts] of Object.entries(b || {})) result[day] = add(result[day], hosts);
     return result;
   }
+  function accountHistory(account) {
+    let lifetime = add(account.local, account.localOnly);
+    let daily = addDays(account.daily, account.localOnlyDaily);
+    for (const counters of Object.values(account.remote || {})) lifetime = add(lifetime, counters);
+    for (const days of Object.values(account.remoteDaily || {})) daily = addDays(daily, days);
+    return { lifetime, daily };
+  }
   function localDay(at = Date.now(), offset = new Date(at).getTimezoneOffset()) {
     return new Date(at - offset * 60_000).toISOString().slice(0, 10);
   }
@@ -73,7 +80,7 @@ globalThis.SiteClockSync = (() => {
     signIn(id, email) {
       if (!Object.hasOwn(this.state.accounts, id)) {
         this.state.accounts[id] = { email, local: copy(), localOnly: copy(), remote: {}, acknowledged: copy(), generation: null,
-          periodVersion: 2, daily: {}, localOnlyDaily: {}, remoteDaily: {}, acknowledgedDaily: {}, enabled: false, lastSync: null, error: null, failures: 0, retryAt: 0 };
+          periodVersion: 2, daily: {}, localOnlyDaily: {}, remoteDaily: {}, acknowledgedDaily: {}, enabled: false, reauthRequired: false, lastSync: null, error: null, failures: 0, retryAt: 0 };
       }
       this.state.accountId = id;
       this.account.email = email;
@@ -81,6 +88,8 @@ globalThis.SiteClockSync = (() => {
     signOut() {
       if (this.account) {
         this.account.enabled = false;
+        this.account.reauthRequired = false;
+        if (this.account.error === 'Sign in again to resume backup.') this.account.error = null;
         this.account.remote = {}; this.account.remoteDaily = {};
       }
       this.state.accountId = null;
@@ -92,7 +101,7 @@ globalThis.SiteClockSync = (() => {
         a.localOnly = add(a.localOnly, a.local);
         a.localOnlyDaily = addDays(a.localOnlyDaily, a.daily);
         a.daily = {}; a.remoteDaily = {}; a.acknowledgedDaily = {};
-        a.local = copy(); a.remote = {}; a.acknowledged = copy(); a.enabled = false;
+        a.local = copy(); a.remote = {}; a.acknowledged = copy(); a.enabled = false; a.reauthRequired = false;
         a.privacyMode = null; a.keyId = null;
         a.error = 'Cloud history was deleted. Enable backup again to start a new contribution.';
         a.generation = value;
@@ -108,9 +117,42 @@ globalThis.SiteClockSync = (() => {
       a.daily = addDays(a.daily, this.state.unassignedDaily);
       this.state.unassignedDaily = {};
       this.state.unassigned = copy();
-      a.enabled = true; a.error = null; a.failures = 0; a.retryAt = 0;
+      a.enabled = true; a.reauthRequired = false; a.error = null; a.failures = 0; a.retryAt = 0;
     }
-    pause() { if (this.account) this.account.enabled = false; }
+    pause() {
+      if (!this.account) return;
+      this.account.enabled = false;
+      this.account.reauthRequired = false;
+      if (this.account.error === 'Sign in again to resume backup.') this.account.error = null;
+    }
+    availableBackfills() {
+      const target = this.account;
+      if (!target) return [];
+      const imported = new Set(target.importedSources || []);
+      return Object.entries(this.state.accounts).filter(([id, source]) => id !== this.state.accountId &&
+        source.email === target.email && !imported.has(id)).map(([sourceAccountId, source]) => {
+        const { lifetime, daily } = accountHistory(source);
+        const totalMs = Object.values(lifetime).reduce((sum, ms) => sum + ms, 0);
+        return { sourceAccountId, email: source.email, siteCount: Object.keys(lifetime).length, totalMs,
+          dayCount: Object.keys(daily).length };
+      }).filter(source => source.totalMs > 0);
+    }
+    backfill(sourceAccountId) {
+      const target = this.account;
+      const source = this.state.accounts[sourceAccountId];
+      if (!target || !source || sourceAccountId === this.state.accountId || source.email !== target.email) {
+        throw Error('That previous account history is not available for this signed-in account.');
+      }
+      if ((target.importedSources || []).includes(sourceAccountId)) throw Error('This account history was already imported.');
+      const { lifetime, daily } = accountHistory(source);
+      const totalMs = Object.values(lifetime).reduce((sum, ms) => sum + ms, 0);
+      if (!totalMs) throw Error('There is no previous account history to import.');
+      target.local = add(target.local, lifetime);
+      target.daily = addDays(target.daily, daily);
+      target.importedSources ||= [];
+      target.importedSources.push(sourceAccountId);
+      return { siteCount: Object.keys(lifetime).length, totalMs, dayCount: Object.keys(daily).length };
+    }
     totals() {
       const a = this.account;
       if (!a) return copy(this.state.unassigned);

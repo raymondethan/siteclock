@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../welcome.js'), 'utf8');
-async function welcome(configured = true) {
-  const elements = Object.fromEntries(['local', 'consent', 'backup', 'status', 'retry', 'browse', 'privacyChoices', 'recoveryCode', 'recoveryPanel', 'newRecoveryCode', 'savedCode', 'savedCodeLabel', 'migrationConsent', 'migrationConsentRow', 'recoveryHeading', 'recoveryInstructions', 'enableAfterRecovery', 'cancelMigration'].map(id => [id, {
-    checked: false, disabled: false, hidden: false, listeners: {},
+async function welcome(configured = true, requireExistingRecoveryCode = false) {
+  const elements = Object.fromEntries(['local', 'consent', 'backup', 'status', 'retry', 'browse', 'privacyChoices', 'existingCodeDetails', 'recoveryCode', 'recoveryPanel', 'newRecoveryCode', 'savedCode', 'savedCodeLabel', 'migrationConsent', 'migrationConsentRow', 'recoveryHeading', 'recoveryInstructions', 'enableAfterRecovery', 'cancelMigration'].map(id => [id, {
+    checked: false, disabled: false, hidden: false, open: false, listeners: {},
     value: '', querySelectorAll() { return []; }, addEventListener(event, callback) { this.listeners[event] = callback; }
   }]));
   elements.recoveryPanel.hidden = true;
@@ -13,6 +13,7 @@ async function welcome(configured = true) {
   const state = { configured, enabled: false };
   const chrome = { runtime: { async sendMessage(message) {
     calls.push(message.type);
+    if (requireExistingRecoveryCode && message.type.endsWith(':signin-enable')) return { error: 'Enter your recovery code to unlock this account.' };
     if (message.type.endsWith(':signin-enable')) Object.assign(state, { enabled: true, lastSync: 123 });
     return { ...state };
   } }, tabs: { async update() {} } };
@@ -43,4 +44,11 @@ test('unconfigured builds still offer local use and keep backup unavailable', as
   elements.consent.checked = true; elements.consent.listeners.change();
   assert.equal(elements.backup.disabled, true);
   assert.equal(elements.local.disabled, false);
+});
+test('existing encrypted account opens the recovery-code entry when required', async () => {
+  const { elements } = await welcome(true, true);
+  elements.consent.checked = true; elements.consent.listeners.change();
+  await elements.backup.listeners.click();
+  assert.equal(elements.existingCodeDetails.open, true);
+  assert.match(elements.status.textContent, /account already has encrypted history/);
 });
